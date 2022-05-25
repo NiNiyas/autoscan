@@ -1,0 +1,132 @@
+name: Build and Push to GHCR
+
+on: 
+  workflow_dispatch:
+  repository_dispatch:
+    types: [Build and Push to GHCR]
+  push:
+    branches:
+      - master
+
+jobs:
+  build-and-push-to-ghcr:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: benjlevesque/short-sha@v1.2
+        id: short-sha
+        with:
+          length: 7
+      - uses: actions/checkout@v2
+      - name: Log into GitHub Container Registry
+        run: echo "${{ secrets.GIT_TOKEN }}" | docker login https://ghcr.io -u ${{ github.actor }} --password-stdin
+        
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v1
+        with:
+          image: tonistiigi/binfmt:latest
+          platforms: all
+  
+      - name: Set up Docker Buildx
+        id: buildx
+        uses: docker/setup-buildx-action@v1
+        with:
+          install: true
+          version: latest
+          driver-opts: image=moby/buildkit:master
+
+      - name: Build and push aarch64
+        id: docker_build_aarch64
+        uses: docker/build-push-action@v2
+        with:
+          context: ./
+          file: ./Dockerfile
+          push: true
+          tags: |
+            ghcr.io/niniyas/autoscan:arm64
+            ghcr.io/${{ secrets.GIT_USER }}/autoscan:arm64_commit-${{ steps.short-sha.outputs.sha }}
+          platforms: linux/arm64
+          build-args: |
+            OVERLAY_ARCH=aarch64
+            ARCH=arm64
+
+      - name: Build and push amd64
+        id: docker_build_amd64
+        uses: docker/build-push-action@v2
+        with:
+          context: ./
+          file: ./Dockerfile
+          push: true
+          tags: |
+            ghcr.io/niniyas/autoscan:amd64
+            ghcr.io/${{ secrets.GIT_USER }}/autoscan:amd64_commit-${{ steps.short-sha.outputs.sha }}
+          platforms: linux/amd64
+          build-args: |
+            OVERLAY_ARCH=amd64
+            ARCH=amd64
+
+      - name: Discord Success Notifications
+        uses: niniyas/discord-webhook-notify@master
+        if: success()
+        with:
+          severity: info
+          webhookUrl: ${{ secrets.DISCORD_WEBHOOK }}
+          details: "Workflow run has been completed successfully!\n **View Here**: [Github Container Registry](https://ghcr.io/niniyas/autoscan)"
+          
+      - name: Discord Failure Notifications
+        uses: niniyas/discord-webhook-notify@master
+        if: failure()
+        with:
+         severity: error
+         details: "Workflow run has failed!"
+         webhookUrl: ${{ secrets.DISCORD_WEBHOOK }}
+         
+      - name: Discord Cancelled Notifications
+        uses: niniyas/discord-webhook-notify@master
+        if: cancelled()
+        with:
+         severity: warn
+         details: "Workflow run has been cancelled!"
+         webhookUrl: ${{ secrets.DISCORD_WEBHOOK }}
+         
+      - name: Pushover Success Notifications
+        uses: niniyas/pushover-notify@master
+        if: success()
+        with:
+          pushoverUser: ${{ secrets.PUSHOVER_USER }}
+          pushoverApp: ${{ secrets.PUSHOVER_APP }}
+          details: "Workflow run has been completed successfully!\n <b>View Here</b>: <a href='https://ghcr.io/niniyas/autoscan'>Github Container Registry</a>"
+          
+      - name: Pushover Failure Notifications
+        uses: niniyas/pushover-notify@master
+        if: failure()
+        with:
+          pushoverUser: ${{ secrets.PUSHOVER_USER }}
+          pushoverApp: ${{ secrets.PUSHOVER_APP }}
+          priority: 1
+          details: "Workflow run has failed!"
+         
+      - name: Pushover Cancelled Notifications
+        uses: niniyas/pushover-notify@master
+        if: cancelled()
+        with:
+          pushoverUser: ${{ secrets.PUSHOVER_USER }}
+          pushoverApp: ${{ secrets.PUSHOVER_APP }}
+          details: "Workflow run has been cancelled!"
+          
+      - name: Slack Notifications
+        if: ${{ always() }}
+        uses: ahmadnassri/action-slack-workflow-notifications@v1
+        with:
+          slack-webhook: ${{ secrets.SLACK_WEBHOOK }}
+
+      - name: Telegram Notifications
+        uses: KaMeHb-UA/telegram-ci-notify-action@v5
+        if: ${{ always() }}
+        with:
+          status: ${{ steps.docker_build.outcome }}
+          bot-token: ${{ secrets.TG_BOT_TOKEN }}
+          chat-id: ${{ secrets.TG_CHAT_ID }}
+          container-name: ghcr.io/niniyas/autoscan
+          container-link: https://ghcr.io/niniyas/autoscan
+          skip-is-fail: true
+          default-branch: $default-branch

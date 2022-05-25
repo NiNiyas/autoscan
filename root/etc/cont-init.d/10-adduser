@@ -1,0 +1,35 @@
+#!/usr/bin/with-contenv bash
+
+PUID=${PUID:-911}
+PGID=${PGID:-911}
+
+groupmod -o -g "$PGID" autoscan
+usermod -o -u "$PUID" autoscan
+
+echo "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+User uid:    $(id -u autoscan)
+User gid:    $(id -g autoscan)
+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+"
+
+time32="$(date +%Y)"
+
+if [[ "${time32}" == "1970" || "${time32}" == "1969" ]] && [ "$(uname -m)" == "armv7l" ]; then
+  echo '
+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+
+Your DockerHost is running an outdated version of libseccomp
+
+To fix this, please visit https://docs.linuxserver.io/faq#libseccomp
+
+Apps will not behave correctly without this
+
+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+'
+sleep infinity
+fi
+
+chown -R autoscan:autoscan /plexDb
+chown -R autoscan:autoscan /config
+chmod -R 777 /plexDb
+chmod -R 777 /config
