@@ -72,14 +72,20 @@ def scan(config, path, scan_for):
         headers = {'accept': 'application/json', 'Content-Type': 'application/json'}
         server_type = config['JELLYFIN_EMBY']
         host = config['JOE_HOST']
-        command = requests.post(host + f'/Library/Media/Updated?api_key={config["JOE_API_KEY"]}',
-                                headers=headers,
-                                json=data)
-        if server_type == "jellyfin":
-            if command.status_code == 204:
-                jellyfin_logger.info("Successfully sent scan request to Jellyfin.")
-        elif server_type == "emby":
-            if command.status_code == 204:
-                emby_logger.info("Successfully sent scan request to Emby.")
+        try:
+            command = requests.post(host + f'/Library/Media/Updated?api_key={config["JOE_API_KEY"]}', headers=headers,
+                                    json=data)
+            if server_type == "jellyfin":
+                if command.status_code == 204:
+                    jellyfin_logger.info("Successfully sent scan request to Jellyfin.")
+            elif server_type == "emby":
+                if command.status_code == 204:
+                    emby_logger.info("Successfully sent scan request to Emby.")
+        except requests.exceptions.ConnectionError:
+            if server_type == "jellyfin":
+                jellyfin_logger.error("Error occurred when trying to send scan request to Jellyfin.")
+            elif server_type == "emby":
+                emby_logger.error("Error occurred when trying to send scan request to Emby.")
+            pass
     except KeyError:
         pass
