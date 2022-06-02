@@ -515,10 +515,13 @@ items. Default is `false`.
 ### Basics
 
 ```json
+"ENABLE_JOE": false
 "JELLYFIN_EMBY": "jellyfin",
 "JOE_API_KEY": "",
 "JOE_HOST": "http://localhost:8096"
 ```
+
+`ENABLE_JOE` - Enable Jellyfin/Emby connection.
 
 `JELLYFIN_EMBY` - Type of server, `jellyfin` or `emby`.
 
