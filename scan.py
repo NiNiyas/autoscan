@@ -5,12 +5,11 @@ import logging
 import os
 import sys
 import time
-
-from pyfiglet import Figlet
 from logging.handlers import RotatingFileHandler
 
 # urllib3
 import urllib3
+from pyfiglet import Figlet
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
@@ -79,7 +78,7 @@ import db
 import plex, jelly_emby
 import utils
 import rclone
-from google import drive, cache
+from google import drive
 
 google_drive = None
 manager = None

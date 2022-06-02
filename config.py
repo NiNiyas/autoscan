@@ -69,6 +69,7 @@ class Config(object):
         'RUN_COMMAND_AFTER_SCAN': '',
         'USE_DOCKER': False,
         'USE_SUDO': True,
+        'ENABLE_JOE': False,
         "JELLYFIN_EMBY": 'jellyfin',
         "JOE_API_KEY": '',
         "JOE_HOST": 'http://localhost:8096',
