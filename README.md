@@ -521,7 +521,7 @@ items. Default is `false`.
 "JOE_HOST": "http://localhost:8096"
 ```
 
-`ENABLE_JOE` - Enable Jellyfin/Emby connection.
+`ENABLE_JOE` - Enable or Disable Jellyfin/Emby connection.
 
 `JELLYFIN_EMBY` - Type of server, `jellyfin` or `emby`.
 
