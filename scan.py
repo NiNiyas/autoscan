@@ -83,6 +83,11 @@ from google import drive
 google_drive = None
 manager = None
 
+if not conf.configs['ENABLE_PLEX']:
+    if not conf.configs['ENABLE_JOE']:
+        logger.error("None of the apps are enabled.. Exiting..")
+        sys.exit(1)
+
 
 ############################################################
 # QUEUE PROCESSOR

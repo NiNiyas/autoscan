@@ -1,6 +1,7 @@
 {
   "DOCKER_NAME": "",
   "ENABLE_JOE": false,
+  "ENABLE_PLEX": false,
   "GOOGLE": {
     "ENABLED": false,
     "CLIENT_ID": "",

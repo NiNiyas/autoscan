@@ -131,6 +131,8 @@ e.g. `sudo systemctl restart plex_autoscan.service` in Ubuntu)._
 ```json
 {
   "DOCKER_NAME": "plex",
+  "ENABLE_JOE": false,
+  "ENABLE_PLEX": false,
   "GOOGLE": {
     "ENABLED": false,
     "CLIENT_ID": "",
@@ -336,6 +338,7 @@ Plex Media Server options.
 ### Plex Basics
 
 ```json
+"ENABLE_PLEX": false,
 "PLEX_USER": "plex",
 "PLEX_TOKEN": "abcdefghijkl",
 "PLEX_LOCAL_URL": "http://localhost:32400",
@@ -346,6 +349,7 @@ Plex Media Server options.
 "PLEX_FIX_MISMATCHED": false,
 "PLEX_FIX_MISMATCHED_LANG": "en",
 ```
+`ENABLE_PLEX` - Enable or disable Plex.
 
 `PLEX_USER` - User account that Plex runs as. This only gets used when either `USE_SUDO` or `USE_DOCKER` is set
 to `true`.
@@ -521,7 +525,7 @@ items. Default is `false`.
 "JOE_HOST": "http://localhost:8096"
 ```
 
-`ENABLE_JOE` - Enable or Disable Jellyfin/Emby connection.
+`ENABLE_JOE` - Enable or Disable Jellyfin/Emby.
 
 `JELLYFIN_EMBY` - Type of server, `jellyfin` or `emby`.
 
