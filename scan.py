@@ -119,11 +119,14 @@ def queue_processor():
 
 
 def start_scan(path, scan_for, scan_type, scan_title=None, scan_lookup_type=None, scan_lookup_id=None):
-    section = utils.get_plex_section(conf.configs, path)
-    if section <= 0:
-        return False
+    if conf.configs['ENABLE_PLEX']:
+        section = utils.get_plex_section(conf.configs, path)
+        if section <= 0:
+            return False
+        else:
+            logger.info("Using Section ID '%d' for '%s'", section, path)
     else:
-        logger.info("Using Section ID '%d' for '%s'", section, path)
+        section = 0
 
     if conf.configs['SERVER_USE_SQLITE']:
         db_exists, db_file = db.exists_file_root_path(path)
