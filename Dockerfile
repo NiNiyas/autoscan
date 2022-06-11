@@ -3,7 +3,7 @@ FROM alpine:latest
 
 ARG ARCH
 ARG OVERLAY_ARCH
-ARG RCLONE_VERSION=1.57.0
+ARG RCLONE_VERSION=1.58.1
 ARG OVERLAY_VERSION=v2.2.0.3
 
 ARG RCLONE_URL="https://github.com/rclone/rclone/releases/download/v${RCLONE_VERSION}/rclone-v${RCLONE_VERSION}-linux-${ARCH}.zip"
@@ -15,7 +15,7 @@ RUN apk add --no-cache --update tzdata tini python3 git py3-pip py3-setuptools l
     pip3 install --upgrade pip idna==2.8 && \
     pip3 install wheel
 
-RUN git clone https://github.com/NiNiyas/autoscan /opt/plex_autoscan && \
+RUN git clone https://github.com/NiNiyas/autoscan -b master /opt/plex_autoscan && \
     apk del --purge git
 
 COPY /root /
@@ -49,6 +49,8 @@ ENV DOCKER_CONFIG=/home/plexautoscan/docker_config.json \
 RUN addgroup -S autoscan && adduser -S autoscan -G autoscan
 
 VOLUME ["/config", "/plexDb"]
+
+LABEL org.opencontainers.image.source = "https://github.com/NiNiyas/autoscan"
 
 EXPOSE 3468/tcp
 
