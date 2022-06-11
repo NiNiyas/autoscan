@@ -131,6 +131,7 @@ e.g. `sudo systemctl restart plex_autoscan.service` in Ubuntu)._
 ```json
 {
   "DOCKER_NAME": "plex",
+  "ENABLE_JOE": false,
   "GOOGLE": {
     "ENABLED": false,
     "CLIENT_ID": "",
@@ -511,6 +512,8 @@ even if there are 0 missing files. If `false`, trash will only be emptied when t
 items. Default is `false`.
 
 ## Jellyfin/Emby
+
+Note: If you need to use this just with JellyFin/Emby, use the [beta](https://github.com/NiNiyas/autoscan/tree/beta) branch.
 
 ### Basics
 
