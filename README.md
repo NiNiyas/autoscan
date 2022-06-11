@@ -513,7 +513,8 @@ items. Default is `false`.
 
 ## Jellyfin/Emby
 
-Note: If you need to use this just with JellyFin/Emby, use the [beta](https://github.com/NiNiyas/autoscan/tree/beta) branch.
+If you need to use this just with Jellyfin/Emby, use the [beta](https://github.com/NiNiyas/autoscan/tree/beta) branch. \
+Docker image for beta branch is available as `ghcr.io/niniyas/autoscan:beta_amd64 # or beta_arm64`
 
 ### Basics
 
