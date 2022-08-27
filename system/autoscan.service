@@ -1,0 +1,17 @@
+# /etc/systemd/system/autoscan.service
+
+[Unit]
+Description=Autoscan
+After=network-online.target
+
+[Service]
+User=YOUR_USER
+Group=YOUR_USER
+Type=simple
+WorkingDirectory=/opt/autoscan/
+ExecStart=/opt/autoscan/scan.py server --loglevel=INFO
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=default.target
