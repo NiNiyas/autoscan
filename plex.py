@@ -18,131 +18,82 @@ logger = logging.getLogger("PLEX")
 
 
 def show_detailed_sections_info(conf):
-    from xml.etree import ElementTree
-    try:
-        logger.info("Requesting section info from Plex...")
-        resp = requests.get('%s/library/sections/all?X-Plex-Token=%s' % (
-            conf.configs['PLEX_LOCAL_URL'], conf.configs['PLEX_TOKEN']), timeout=30)
-        if resp.status_code == 200:
-            logger.info("Requesting of section info was successful.")
-            logger.debug("Request response: %s", resp.text)
-            root = ElementTree.fromstring(resp.text)
-            print('')
-            print("Plex Sections:")
-            print("==============")
-            for document in root.findall("Directory"):
+    if conf.configs['ENABLE_PLEX']:
+        from xml.etree import ElementTree
+        try:
+            logger.info("Requesting section info from Plex...")
+            resp = requests.get('%s/library/sections/all?X-Plex-Token=%s' % (
+                conf.configs['PLEX_LOCAL_URL'], conf.configs['PLEX_TOKEN']), timeout=30)
+            if resp.status_code == 200:
+                logger.info("Requesting of section info was successful.")
+                logger.debug("Request response: %s", resp.text)
+                root = ElementTree.fromstring(resp.text)
                 print('')
-                print(document.get('key') + ') ' + document.get('title'))
-                dashes_length = len(document.get('key') + ') ' + document.get('title'))
-                print('-' * dashes_length)
-                print("\n".join([os.path.join(k.get('path'), '') for k in document.findall("Location")]))
-    except Exception as e:
-        logger.exception("Issue encountered when attempting to list detailed sections info.")
+                print("Plex Sections:")
+                print("==============")
+                for document in root.findall("Directory"):
+                    print('')
+                    print(document.get('key') + ') ' + document.get('title'))
+                    dashes_length = len(document.get('key') + ') ' + document.get('title'))
+                    print('-' * dashes_length)
+                    print("\n".join([os.path.join(k.get('path'), '') for k in document.findall("Location")]))
+        except Exception as e:
+            logger.exception("Issue encountered when attempting to list detailed sections info.")
+    else:
+        logger.error(
+            "You must enable Plex in config. To enable it set 'ENABLE_PLEX' to true in config.json.")
 
 
 def scan(config, lock, path, scan_for, section, scan_type, resleep_paths, scan_title=None, scan_lookup_type=None,
          scan_lookup_id=None):
-    scan_path = ""
+    if config['ENABLE_PLEX']:
+        scan_path = ""
 
-    # sleep for delay
-    while True:
-        logger.info("Scan request from %s for '%s'.", scan_for, path)
+        # sleep for delay
+        while True:
+            logger.info("Scan request from %s for '%s'.", scan_for, path)
 
-        if config['SERVER_SCAN_DELAY']:
-            logger.info("Sleeping for %d seconds...", config['SERVER_SCAN_DELAY'])
-            time.sleep(config['SERVER_SCAN_DELAY'])
+            if config['SERVER_SCAN_DELAY']:
+                logger.info("Sleeping for %d seconds...", config['SERVER_SCAN_DELAY'])
+                time.sleep(config['SERVER_SCAN_DELAY'])
 
-        # check if root scan folder for
-        if path in resleep_paths:
-            logger.info("Another scan request occurred for folder of '%s'.", path)
-            logger.info("Sleeping again for %d seconds...", config['SERVER_SCAN_DELAY'])
-            utils.remove_item_from_list(path, resleep_paths)
-        else:
-            break
-
-    # check file exists
-    checks = 0
-    check_path = utils.map_pushed_path_file_exists(config, path)
-    scan_path_is_directory = os.path.isdir(check_path)
-
-    while True:
-        checks += 1
-        if os.path.exists(check_path):
-            logger.info("File '%s' exists on check %d of %d.", check_path, checks, config['SERVER_MAX_FILE_CHECKS'])
-            if not scan_path or not len(scan_path):
-                scan_path = os.path.dirname(path).strip() if not scan_path_is_directory else path.strip()
-            break
-        elif not scan_path_is_directory and config['SERVER_SCAN_FOLDER_ON_FILE_EXISTS_EXHAUSTION'] and \
-                config['SERVER_MAX_FILE_CHECKS'] - checks == 1:
-            # penultimate check but SERVER_SCAN_FOLDER_ON_FILE_EXISTS_EXHAUSTION was turned on
-            # lets make scan path the folder instead for the final check
-            logger.warning(
-                "File '%s' reached the penultimate file check. Changing scan path to '%s'. Final check commences "
-                "in %s seconds...", check_path, os.path.dirname(path), config['SERVER_FILE_CHECK_DELAY'])
-            check_path = os.path.dirname(check_path).strip()
-            scan_path = os.path.dirname(path).strip()
-            scan_path_is_directory = os.path.isdir(check_path)
-            time.sleep(config['SERVER_FILE_CHECK_DELAY'])
-            # send Rclone cache clear if enabled
-            if config['RCLONE']['RC_CACHE_REFRESH']['ENABLED']:
-                utils.rclone_rc_clear_cache(config, check_path)
-
-        elif checks >= config['SERVER_MAX_FILE_CHECKS']:
-            logger.warning("File '%s' exhausted all available checks. Aborting scan request.", check_path)
-            # remove item from database if sqlite is enabled
-            if config['SERVER_USE_SQLITE']:
-                if db.remove_item(path):
-                    logger.info("Removed '%s' from Plex Autoscan database.", path)
-                    time.sleep(1)
-                else:
-                    logger.error("Failed removing '%s' from Plex Autoscan database.", path)
-            return
-
-        else:
-            logger.info("File '%s' did not exist on check %d of %d. Checking again in %s seconds...", check_path,
-                        checks,
-                        config['SERVER_MAX_FILE_CHECKS'],
-                        config['SERVER_FILE_CHECK_DELAY'])
-            time.sleep(config['SERVER_FILE_CHECK_DELAY'])
-            # send Rclone cache clear if enabled
-            if config['RCLONE']['RC_CACHE_REFRESH']['ENABLED']:
-                utils.rclone_rc_clear_cache(config, check_path)
-
-    # build plex scanner command
-    if os.name == 'nt':
-        final_cmd = '"%s" --scan --refresh --section %s --directory "%s"' \
-                    % (config['PLEX_SCANNER'], str(section), scan_path)
-    else:
-        cmd = 'export LD_LIBRARY_PATH=' + config['PLEX_LD_LIBRARY_PATH'] + ';'
-        if not config['USE_DOCKER']:
-            cmd += 'export PLEX_MEDIA_SERVER_APPLICATION_SUPPORT_DIR=' + config['PLEX_SUPPORT_DIR'] + ';'
-        cmd += config['PLEX_SCANNER'] + ' --scan --refresh --section ' + str(section) + ' --directory ' + cmd_quote(
-            scan_path)
-
-        if config['USE_DOCKER']:
-            final_cmd = 'docker exec -u %s -i %s bash -c %s' % \
-                        (cmd_quote(config['PLEX_USER']), cmd_quote(config['DOCKER_NAME']), cmd_quote(cmd))
-        elif config['USE_SUDO']:
-            final_cmd = 'sudo -u %s bash -c %s' % (config['PLEX_USER'], cmd_quote(cmd))
-        else:
-            final_cmd = cmd
-
-    # invoke plex scanner
-    priority = utils.get_priority(config, scan_path)
-    logger.debug("Waiting for turn in the scan request backlog with priority '%d'...", priority)
-
-    lock.acquire(priority)
-    try:
-        logger.info("Scan request is now being processed...")
-        # wait for existing scanners being ran by Plex
-        if config['PLEX_WAIT_FOR_EXTERNAL_SCANNERS']:
-            if os.name == 'nt':
-                scanner_name = os.path.basename(config['PLEX_SCANNER'])
+            # check if root scan folder for
+            if path in resleep_paths:
+                logger.info("Another scan request occurred for folder of '%s'.", path)
+                logger.info("Sleeping again for %d seconds...", config['SERVER_SCAN_DELAY'])
+                utils.remove_item_from_list(path, resleep_paths)
             else:
-                scanner_name = os.path.basename(config['PLEX_SCANNER']).replace('\\', '')
-            if not utils.wait_running_process(scanner_name, config['USE_DOCKER'], cmd_quote(config['DOCKER_NAME'])):
+                break
+
+        # check file exists
+        checks = 0
+        check_path = utils.map_pushed_path_file_exists(config, path)
+        scan_path_is_directory = os.path.isdir(check_path)
+
+        while True:
+            checks += 1
+            if os.path.exists(check_path):
+                logger.info("File '%s' exists on check %d of %d.", check_path, checks, config['SERVER_MAX_FILE_CHECKS'])
+                if not scan_path or not len(scan_path):
+                    scan_path = os.path.dirname(path).strip() if not scan_path_is_directory else path.strip()
+                break
+            elif not scan_path_is_directory and config['SERVER_SCAN_FOLDER_ON_FILE_EXISTS_EXHAUSTION'] and \
+                    config['SERVER_MAX_FILE_CHECKS'] - checks == 1:
+                # penultimate check but SERVER_SCAN_FOLDER_ON_FILE_EXISTS_EXHAUSTION was turned on
+                # lets make scan path the folder instead for the final check
                 logger.warning(
-                    "There was a problem waiting for existing '%s' process(s) to finish. Aborting scan.", scanner_name)
+                    "File '%s' reached the penultimate file check. Changing scan path to '%s'. Final check commences "
+                    "in %s seconds...", check_path, os.path.dirname(path), config['SERVER_FILE_CHECK_DELAY'])
+                check_path = os.path.dirname(check_path).strip()
+                scan_path = os.path.dirname(path).strip()
+                scan_path_is_directory = os.path.isdir(check_path)
+                time.sleep(config['SERVER_FILE_CHECK_DELAY'])
+                # send Rclone cache clear if enabled
+                if config['RCLONE']['RC_CACHE_REFRESH']['ENABLED']:
+                    utils.rclone_rc_clear_cache(config, check_path)
+
+            elif checks >= config['SERVER_MAX_FILE_CHECKS']:
+                logger.warning("File '%s' exhausted all available checks. Aborting scan request.", check_path)
                 # remove item from database if sqlite is enabled
                 if config['SERVER_USE_SQLITE']:
                     if db.remove_item(path):
@@ -151,110 +102,133 @@ def scan(config, lock, path, scan_for, section, scan_type, resleep_paths, scan_t
                     else:
                         logger.error("Failed removing '%s' from Plex Autoscan database.", path)
                 return
+
             else:
-                logger.info("No '%s' processes were found.", scanner_name)
+                logger.info("File '%s' did not exist on check %d of %d. Checking again in %s seconds...", check_path,
+                            checks,
+                            config['SERVER_MAX_FILE_CHECKS'],
+                            config['SERVER_FILE_CHECK_DELAY'])
+                time.sleep(config['SERVER_FILE_CHECK_DELAY'])
+                # send Rclone cache clear if enabled
+                if config['RCLONE']['RC_CACHE_REFRESH']['ENABLED']:
+                    utils.rclone_rc_clear_cache(config, check_path)
 
-        # run external command before scan if supplied
-        if len(config['RUN_COMMAND_BEFORE_SCAN']) > 2:
-            logger.info("Running external command: %r", config['RUN_COMMAND_BEFORE_SCAN'])
-            utils.run_command(config['RUN_COMMAND_BEFORE_SCAN'])
-            logger.info("Finished running external command.")
+        # plex scanner
+        final_cmd = requests.get(
+            f"{config['PLEX_LOCAL_URL']}/library/sections/{str(section)}/refresh?path={scan_path}&X-Plex-Token={config['PLEX_TOKEN']}",
+            timeout=30)
 
-        # wait for Plex to become responsive (if PLEX_CHECK_BEFORE_SCAN is enabled)
-        if 'PLEX_CHECK_BEFORE_SCAN' in config and config['PLEX_CHECK_BEFORE_SCAN']:
-            plex_account_user = wait_plex_alive(config)
-            if plex_account_user is not None:
-                logger.info("Plex is available for media scanning - (Server Account: '%s')", plex_account_user)
+        # invoke plex scanner
+        priority = utils.get_priority(config, scan_path)
+        logger.debug("Waiting for turn in the scan request backlog with priority '%d'...", priority)
 
-        # begin scan
-        logger.info("Running Plex Media Scanner for: %s", scan_path)
-        logger.debug(final_cmd)
-        if os.name == 'nt':
-            utils.run_command(final_cmd)
-        else:
-            utils.run_command(final_cmd.encode("utf-8"))
-        logger.info("Finished scan!")
+        lock.acquire(priority)
+        try:
+            logger.info("Scan request is now being processed...")
+            # wait for existing scanners to exit
+            if config['PLEX_WAIT_FOR_EXTERNAL_SCANNERS']:
+                if os.name == 'nt':
+                    scanner_name = os.path.basename(config['PLEX_SCANNER'])
+                else:
+                    scanner_name = os.path.basename(config['PLEX_SCANNER']).replace('\\', '')
+                if not utils.wait_running_process(scanner_name, config['USE_DOCKER'], cmd_quote(config['DOCKER_NAME'])):
+                    logger.warning(
+                        "There was a problem waiting for existing '%s' process(s) to finish. Aborting scan.",
+                        scanner_name)
+                    # remove item from database if sqlite is enabled
+                    if config['SERVER_USE_SQLITE']:
+                        if db.remove_item(path):
+                            logger.info("Removed '%s' from Plex Autoscan database.", path)
+                            time.sleep(1)
+                        else:
+                            logger.error("Failed removing '%s' from Plex Autoscan database.", path)
+                    return
+                else:
+                    logger.info("No '%s' processes were found.", scanner_name)
 
-        # remove item from Plex database if sqlite is enabled
-        if config['SERVER_USE_SQLITE']:
-            if db.remove_item(path):
-                logger.debug("Removed '%s' from Plex Autoscan database.", path)
-                time.sleep(1)
-                logger.info("There are %d queued item(s) remaining.", db.queued_count())
+            # run external command before scan if supplied
+            if len(config['RUN_COMMAND_BEFORE_SCAN']) > 2:
+                logger.info("Running external command: %r", config['RUN_COMMAND_BEFORE_SCAN'])
+                utils.run_command(config['RUN_COMMAND_BEFORE_SCAN'])
+                logger.info("Finished running external command.")
+
+            # wait for Plex to become responsive (if PLEX_CHECK_BEFORE_SCAN is enabled)
+            if 'PLEX_CHECK_BEFORE_SCAN' in config and config['PLEX_CHECK_BEFORE_SCAN']:
+                plex_account_user = wait_plex_alive(config)
+                if plex_account_user is not None:
+                    logger.info("Plex is available for media scanning - (Server Account: '%s')", plex_account_user)
+
+            # begin scan
+            logger.info("Running Plex Media Scanner for: %s", scan_path)
+            logger.debug(final_cmd)
+            if final_cmd.status_code == 200:
+                logger.debug(f"Successfully sent scan request to Plex for '{scan_path}'.")
+                logger.info("Finished scan!")
             else:
-                logger.error("Failed removing '%s' from Plex Autoscan database.", path)
+                logger.error(f"Error occurred when trying to send scan request to Plex for '{scan_path}'.")
+                logger.error("-" * 100)
+                logger.error(f"Status code: {final_cmd.status_code}")
+                logger.error(f"Content: {final_cmd.content}")
+                logger.error("-" * 100)
 
-        # empty trash if configured
-        if config['PLEX_EMPTY_TRASH'] and config['PLEX_TOKEN'] and config['PLEX_EMPTY_TRASH_MAX_FILES']:
-            logger.debug("Checking deleted items count in 10 seconds...")
-            time.sleep(10)
+            # remove item from Plex database if sqlite is enabled
+            if config['SERVER_USE_SQLITE']:
+                if db.remove_item(path):
+                    logger.debug("Removed '%s' from Plex Autoscan database.", path)
+                    time.sleep(1)
+                    logger.info("There are %d queued item(s) remaining.", db.queued_count())
+                else:
+                    logger.error("Failed removing '%s' from Plex Autoscan database.", path)
 
-            # check deleted item count, don't proceed if more than this value
-            deleted_items = get_deleted_count(config)
-            if deleted_items > config['PLEX_EMPTY_TRASH_MAX_FILES']:
-                logger.warning("There were %d deleted files. Skip emptying of trash for Section '%s'.", deleted_items,
-                               section)
-            elif deleted_items == -1:
-                logger.error("Could not determine deleted item count. Abort emptying of trash.")
-            elif not config['PLEX_EMPTY_TRASH_ZERO_DELETED'] and not deleted_items and scan_type != 'Upgrade':
-                logger.debug("Skipping emptying trash as there were no deleted items.")
-            else:
-                logger.info("Emptying trash to clear %d deleted items...", deleted_items)
-                empty_trash(config, str(section))
+            # empty trash if configured
+            if config['PLEX_EMPTY_TRASH'] and config['PLEX_TOKEN'] and config['PLEX_EMPTY_TRASH_MAX_FILES']:
+                logger.debug("Checking deleted items count in 10 seconds...")
+                time.sleep(10)
 
-        # analyze movie/episode
-        if config['PLEX_ANALYZE_TYPE'].lower() != 'off' and not scan_path_is_directory:
-            logger.debug("Sleeping for 10 seconds...")
-            time.sleep(10)
-            logger.debug("Sending analysis request...")
-            analyze_item(config, path)
+                # check deleted item count, don't proceed if more than this value
+                deleted_items = get_deleted_count(config)
+                if deleted_items > config['PLEX_EMPTY_TRASH_MAX_FILES']:
+                    logger.warning("There were %d deleted files. Skip emptying of trash for Section '%s'.",
+                                   deleted_items,
+                                   section)
+                elif deleted_items == -1:
+                    logger.error("Could not determine deleted item count. Abort emptying of trash.")
+                elif not config['PLEX_EMPTY_TRASH_ZERO_DELETED'] and not deleted_items and scan_type != 'Upgrade':
+                    logger.debug("Skipping emptying trash as there were no deleted items.")
+                else:
+                    logger.info("Emptying trash to clear %d deleted items...", deleted_items)
+                    empty_trash(config, str(section))
 
-        # match item
-        if config['PLEX_FIX_MISMATCHED'] and config['PLEX_TOKEN'] and not scan_path_is_directory:
-            # were we initiated with the scan_title/scan_lookup_type/scan_lookup_id parameters?
-            if scan_title is not None and scan_lookup_type is not None and scan_lookup_id is not None:
+            # analyze movie/episode
+            if config['PLEX_ANALYZE_TYPE'].lower() != 'off' and not scan_path_is_directory:
                 logger.debug("Sleeping for 10 seconds...")
                 time.sleep(10)
-                logger.debug("Validating match for '%s' (%s ID: %s)...",
-                             scan_title,
-                             scan_lookup_type, str(scan_lookup_id))
-                match_item_parent(config, path, scan_title, scan_lookup_type, scan_lookup_id)
+                logger.debug("Sending analysis request...")
+                analyze_item(config, path)
 
-        # run external command after scan if supplied
-        if len(config['RUN_COMMAND_AFTER_SCAN']) > 2:
-            logger.info("Running external command: %r", config['RUN_COMMAND_AFTER_SCAN'])
-            utils.run_command(config['RUN_COMMAND_AFTER_SCAN'])
-            logger.info("Finished running external command.")
+            # match item
+            if config['PLEX_FIX_MISMATCHED'] and config['PLEX_TOKEN'] and not scan_path_is_directory:
+                # were we initiated with the scan_title/scan_lookup_type/scan_lookup_id parameters?
+                if scan_title is not None and scan_lookup_type is not None and scan_lookup_id is not None:
+                    logger.debug("Sleeping for 10 seconds...")
+                    time.sleep(10)
+                    logger.debug("Validating match for '%s' (%s ID: %s)...",
+                                 scan_title,
+                                 scan_lookup_type, str(scan_lookup_id))
+                    match_item_parent(config, path, scan_title, scan_lookup_type, scan_lookup_id)
 
-    except Exception:
-        logger.exception("Unexpected exception occurred while processing: '%s'", scan_path)
-    finally:
-        lock.release()
+            # run external command after scan if supplied
+            if len(config['RUN_COMMAND_AFTER_SCAN']) > 2:
+                logger.info("Running external command: %r", config['RUN_COMMAND_AFTER_SCAN'])
+                utils.run_command(config['RUN_COMMAND_AFTER_SCAN'])
+                logger.info("Finished running external command.")
+
+        except Exception:
+            logger.exception("Unexpected exception occurred while processing: '%s'", scan_path)
+        finally:
+            lock.release()
+
     return
-
-
-def show_sections(config):
-    if os.name == 'nt':
-        final_cmd = '""%s" --list"' % config['PLEX_SCANNER']
-    else:
-        cmd = 'export LD_LIBRARY_PATH=' + config['PLEX_LD_LIBRARY_PATH'] + ';'
-        if not config['USE_DOCKER']:
-            cmd += 'export PLEX_MEDIA_SERVER_APPLICATION_SUPPORT_DIR=' + config['PLEX_SUPPORT_DIR'] + ';'
-        cmd += config['PLEX_SCANNER'] + ' --list'
-
-        if config['USE_DOCKER']:
-            final_cmd = 'docker exec -u %s -it %s bash -c %s' % (
-                cmd_quote(config['PLEX_USER']), cmd_quote(config['DOCKER_NAME']), cmd_quote(cmd))
-        elif config['USE_SUDO']:
-            final_cmd = 'sudo -u %s bash -c "%s"' % (config['PLEX_USER'], cmd)
-        else:
-            final_cmd = cmd
-    logger.info("Using Plex Scanner")
-    print("\n")
-    print("Plex Sections:")
-    print("==============")
-    logger.debug(final_cmd)
-    os.system(final_cmd)
 
 
 def match_item_parent(config, scan_path, scan_title, scan_lookup_type, scan_lookup_id):

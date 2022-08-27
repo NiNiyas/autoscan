@@ -70,6 +70,7 @@ class Config(object):
         'USE_DOCKER': False,
         'USE_SUDO': True,
         'ENABLE_JOE': False,
+        'ENABLE_PLEX': False,
         "JELLYFIN_EMBY": 'jellyfin',
         "JOE_API_KEY": '',
         "JOE_HOST": 'http://localhost:8096',
@@ -95,27 +96,27 @@ class Config(object):
     base_settings = {
         'config': {
             'argv': '--config',
-            'env': 'PLEX_AUTOSCAN_CONFIG',
+            'env': 'AUTOSCAN_CONFIG',
             'default': os.path.join(os.path.dirname(sys.argv[0]), 'config', 'config.json')
         },
         'logfile': {
             'argv': '--logfile',
-            'env': 'PLEX_AUTOSCAN_LOGFILE',
-            'default': os.path.join(os.path.dirname(sys.argv[0]), 'plex_autoscan.log')
+            'env': 'AUTOSCAN_LOGFILE',
+            'default': os.path.join(os.path.dirname(sys.argv[0]), 'autoscan.log')
         },
         'loglevel': {
             'argv': '--loglevel',
-            'env': 'PLEX_AUTOSCAN_LOGLEVEL',
+            'env': 'AUTOSCAN_LOGLEVEL',
             'default': 'INFO'
         },
         'queuefile': {
             'argv': '--queuefile',
-            'env': 'PLEX_AUTOSCAN_QUEUEFILE',
+            'env': 'AUTOSCAN_QUEUEFILE',
             'default': os.path.join(os.path.dirname(sys.argv[0]), 'queue.db')
         },
         'cachefile': {
             'argv': '--cachefile',
-            'env': 'PLEX_AUTOSCAN_CACHEFILE',
+            'env': 'AUTOSCAN_CACHEFILE',
             'default': os.path.join(os.path.dirname(sys.argv[0]), 'cache.db')
         }
     }
@@ -134,8 +135,6 @@ class Config(object):
 
         if os.name == 'nt':
             cfg['PLEX_SCANNER'] = '%PROGRAMFILES(X86)%\\Plex\\Plex Media Server\\Plex Media Scanner.exe'
-            cfg['PLEX_SUPPORT_DIR'] = '%LOCALAPPDATA%\\Plex Media Server'
-            cfg['PLEX_LD_LIBRARY_PATH'] = '%LOCALAPPDATA%\\Plex Media Server'
             cfg[
                 'PLEX_DATABASE_PATH'] = '%LOCALAPPDATA%\\Plex Media Server\\Plug-in Support\\Databases\\com.plexapp.plugins.library.db'
             cfg['RCLONE']['BINARY'] = '%ChocolateyInstall%\\bin\\rclone.exe'

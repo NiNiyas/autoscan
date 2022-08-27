@@ -42,8 +42,8 @@ jobs:
           file: ./Dockerfile
           push: true
           tags: |
-            ghcr.io/niniyas/autoscan:arm64
-            ghcr.io/${{ secrets.GIT_USER }}/autoscan:arm64_commit-${{ steps.short-sha.outputs.sha }}
+            ghcr.io/niniyas/autoscan:server_api_arm64
+            ghcr.io/${{ secrets.GIT_USER }}/autoscan:server_api_arm64_commit-${{ steps.short-sha.outputs.sha }}
           platforms: linux/arm64
           build-args: |
             OVERLAY_ARCH=aarch64
@@ -57,8 +57,8 @@ jobs:
           file: ./Dockerfile
           push: true
           tags: |
-            ghcr.io/niniyas/autoscan:amd64
-            ghcr.io/${{ secrets.GIT_USER }}/autoscan:amd64_commit-${{ steps.short-sha.outputs.sha }}
+            ghcr.io/niniyas/autoscan:server_api_amd64
+            ghcr.io/${{ secrets.GIT_USER }}/autoscan:server_api_amd64_commit-${{ steps.short-sha.outputs.sha }}
           platforms: linux/amd64
           build-args: |
             OVERLAY_ARCH=amd64

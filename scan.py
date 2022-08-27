@@ -83,6 +83,17 @@ from google import drive
 google_drive = None
 manager = None
 
+if not conf.configs['ENABLE_PLEX']:
+    if not conf.configs['ENABLE_JOE']:
+        logger.error("None of the apps are enabled.. Exiting..")
+        sys.exit(1)
+    else:
+        if conf.configs['JOE_API_KEY']:
+            logger.error("JOE_API_KEY is not set.. Exiting..")
+else:
+    if conf.configs['PLEX_TOKEN'] == '':
+        logger.error("PLEX_TOKEN is not set.. Exiting..")
+        sys.exit(1)
 
 ############################################################
 # QUEUE PROCESSOR
@@ -114,11 +125,14 @@ def queue_processor():
 
 
 def start_scan(path, scan_for, scan_type, scan_title=None, scan_lookup_type=None, scan_lookup_id=None):
-    section = utils.get_plex_section(conf.configs, path)
-    if section <= 0:
-        return False
+    if conf.configs['ENABLE_PLEX']:
+        section = utils.get_plex_section(conf.configs, path)
+        if section <= 0:
+            return False
+        else:
+            logger.info("Using Section ID '%d' for '%s'", section, path)
     else:
-        logger.info("Using Section ID '%d' for '%s'", section, path)
+        section = 0
 
     if conf.configs['SERVER_USE_SQLITE']:
         db_exists, db_file = db.exists_file_root_path(path)
@@ -496,9 +510,6 @@ if __name__ == "__main__":
 #########################################################################
 """)
     if conf.args['cmd'] == 'sections':
-        plex.show_sections(conf.configs)
-        exit(0)
-    elif conf.args['cmd'] == 'sections+':
         plex.show_detailed_sections_info(conf)
         exit(0)
     elif conf.args['cmd'] == 'jesections':
