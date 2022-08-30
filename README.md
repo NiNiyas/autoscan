@@ -957,7 +957,7 @@ To set this up:
 
 ---
 
-## rclone Remote Control
+## rclone remote control
 
 _Note: This if for rclone mounts using the "cache" or "vfs" backends._
 

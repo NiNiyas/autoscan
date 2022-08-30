@@ -496,7 +496,7 @@ if __name__ == "__main__":
     print("")
 
     f = Figlet(font='slant', width=100)
-    print(f.renderText('Plex Autoscan'))
+    print(f.renderText('Autoscan'))
 
     logger.info("""
 #########################################################################
