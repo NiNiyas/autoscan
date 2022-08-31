@@ -361,18 +361,14 @@ class Config(object):
 
         # Mode
         parser.add_argument('cmd',
-                            choices=('sections', 'sections+', 'server', 'authorize', 'build_caches', 'update_config',
-                                     'jesections'),
+                            choices=('sections', 'server', 'authorize', 'build_caches', 'update_config', 'jesections'),
                             help=(
-                                '"sections": Prints Plex Sections.\n'
-                                '"sections+": Prints Plex Sections with more details.\n'
+                                '"sections": Prints Plex Sections with more details.\n'
                                 '"jesections": Prints Jellyfin/Emby library paths.\n'
                                 '"server": Starts the application.\n'
                                 '"authorize": Authorize against a Google account.\n'
                                 '"build_caches": Build complete Google Drive caches.\n'
-                                '"update_config": Perform upgrade of config.'
-                            )
-                            )
+                                '"update_config": Perform upgrade of config.'))
 
         # Config file
         parser.add_argument(self.base_settings['config']['argv'],
