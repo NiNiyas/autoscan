@@ -7,24 +7,15 @@ import sys
 import time
 from logging.handlers import RotatingFileHandler
 
-# urllib3
+import config
+import threads
 import urllib3
-from pyfiglet import Figlet
-
-urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-
-# Replace Python2.X input with raw_input, renamed to input in Python 3
-if hasattr(__builtins__, 'raw_input'):
-    input = raw_input
-
 from flask import Flask
 from flask import abort
 from flask import jsonify
 from flask import request
-
-# Get config
-import config
-import threads
+from pyfiglet import Figlet
+import flask.cli
 
 ############################################################
 # INIT
@@ -51,27 +42,32 @@ rootLogger.addHandler(consoleHandler)
 conf = config.Config()
 
 # File logger
-fileHandler = RotatingFileHandler(
-    conf.settings['logfile'],
-    maxBytes=1024 * 1024 * 2,
-    backupCount=5,
-    encoding='utf-8'
-)
+fileHandler = RotatingFileHandler(conf.settings['logfile'], maxBytes=1024 * 1024 * 2, backupCount=5, encoding='utf-8')
 fileHandler.setFormatter(logFormatter)
 rootLogger.addHandler(fileHandler)
 
 # Set configured log level
 rootLogger.setLevel(conf.settings['loglevel'])
-# Load config file
-conf.load()
 
 # Scan logger
 logger = rootLogger.getChild("AUTOSCAN")
+
+# Load config file
+try:
+    conf.load()
+except Exception as e:
+    logger.error(
+        f"Error occurred when trying to load config.json. Please make sure it is a valid json file.. Exception: {e}. Exiting.."
+    )
+    sys.exit(1)
+
+flask.cli.show_server_banner = lambda *args: None
 
 # Multiprocessing
 thread = threads.Thread()
 scan_lock = threads.PriorityLock()
 resleep_paths = []
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 # local imports
 import db
@@ -88,12 +84,14 @@ if not conf.configs['ENABLE_PLEX']:
         logger.error("None of the apps are enabled.. Exiting..")
         sys.exit(1)
     else:
-        if conf.configs['JOE_API_KEY']:
+        if conf.configs['JOE_API_KEY'] == '':
             logger.error("JOE_API_KEY is not set.. Exiting..")
+            sys.exit(1)
 else:
     if conf.configs['PLEX_TOKEN'] == '':
         logger.error("PLEX_TOKEN is not set.. Exiting..")
         sys.exit(1)
+
 
 ############################################################
 # QUEUE PROCESSOR
@@ -108,14 +106,23 @@ def queue_processor():
         db_scan_requests = db.get_all_items()
         items = 0
         for db_item in db_scan_requests:
-            thread.start(plex.scan, args=[conf.configs, scan_lock, db_item['scan_path'], db_item['scan_for'],
-                                          db_item['scan_section'],
-                                          db_item['scan_type'], resleep_paths])
+            thread.start(
+                plex.scan,
+                args=[
+                    conf.configs,
+                    scan_lock,
+                    db_item['scan_path'],
+                    db_item['scan_for'],
+                    db_item['scan_section'],
+                    db_item['scan_type'],
+                    resleep_paths,
+                ],
+            )
             items += 1
             time.sleep(2)
-        logger.info("Restored %d scan request(s) from Plex Autoscan database.", items)
+        logger.info("Restored %d scan request(s) from Autoscan database.", items)
     except Exception:
-        logger.exception("Exception while processing scan requests from Plex Autoscan database.")
+        logger.exception("Exception while processing scan requests from Autoscan database.")
     return
 
 
@@ -137,19 +144,32 @@ def start_scan(path, scan_for, scan_type, scan_title=None, scan_lookup_type=None
     if conf.configs['SERVER_USE_SQLITE']:
         db_exists, db_file = db.exists_file_root_path(path)
         if not db_exists and db.add_item(path, scan_for, section, scan_type):
-            logger.info("Added '%s' to Plex Autoscan database.", path)
+            logger.info("Added '%s' to Autoscan database.", path)
             logger.info("Proceeding with scan...")
         else:
             logger.info(
-                "Already processing '%s' from same folder. Skip adding extra scan request to the queue.", db_file)
+                "Already processing '%s' from same folder. Skip adding extra scan request to the queue.", db_file
+            )
             resleep_paths.append(db_file)
             return False
 
     thread.start(jelly_emby.scan, args=[conf.configs, path, scan_for])
 
-    thread.start(plex.scan,
-                 args=[conf.configs, scan_lock, path, scan_for, section, scan_type, resleep_paths, scan_title,
-                       scan_lookup_type, scan_lookup_id])
+    thread.start(
+        plex.scan,
+        args=[
+            conf.configs,
+            scan_lock,
+            path,
+            scan_for,
+            section,
+            scan_type,
+            resleep_paths,
+            scan_title,
+            scan_lookup_type,
+            scan_lookup_id,
+        ],
+    )
 
     return True
 
@@ -168,6 +188,7 @@ def start_google_monitor():
 # GOOGLE DRIVE
 ############################################################
 
+
 def process_google_changes(items_added):
     new_file_paths = []
 
@@ -182,17 +203,16 @@ def process_google_changes(items_added):
             new_file_paths.append(file_path)
 
     # remove files that already exist in the plex database
-    removed_rejected_exists = utils.remove_files_exist_in_plex_database(conf.configs,
-                                                                        new_file_paths)
+    removed_rejected_exists = utils.remove_files_exist_in_plex_database(conf.configs, new_file_paths)
 
     if removed_rejected_exists:
-        logger.info("Rejected %d file(s) from Google Drive changes for already being in Plex.",
-                    removed_rejected_exists)
+        logger.info("Rejected %d file(s) from Google Drive changes for already being in Plex.", removed_rejected_exists)
 
     # process the file_paths list
     if len(new_file_paths):
-        logger.info("Proceeding with scan of %d file(s) from Google Drive changes: %s", len(new_file_paths),
-                    new_file_paths)
+        logger.info(
+            "Proceeding with scan of %d file(s) from Google Drive changes: %s", len(new_file_paths), new_file_paths
+        )
 
         # loop each file, remapping and starting a scan thread
         for file_path in new_file_paths:
@@ -214,15 +234,20 @@ def thread_google_monitor():
     # load rclone client if crypt being used
     if conf.configs['RCLONE']['CRYPT_MAPPINGS'] != {}:
         logger.info("Crypt mappings have been defined. Initializing Rclone Crypt Decoder...")
-        crypt_decoder = rclone.RcloneDecoder(conf.configs['RCLONE']['BINARY'], conf.configs['RCLONE']['CRYPT_MAPPINGS'],
-                                             conf.configs['RCLONE']['CONFIG'])
+        crypt_decoder = rclone.RcloneDecoder(
+            conf.configs['RCLONE']['BINARY'], conf.configs['RCLONE']['CRYPT_MAPPINGS'], conf.configs['RCLONE']['CONFIG']
+        )
 
     # load google drive manager
-    manager = drive.GoogleDriveManager(conf.configs['GOOGLE']['CLIENT_ID'], conf.configs['GOOGLE']['CLIENT_SECRET'],
-                                       conf.settings['cachefile'], allowed_config=conf.configs['GOOGLE']['ALLOWED'],
-                                       show_cache_logs=conf.configs['GOOGLE']['SHOW_CACHE_LOGS'],
-                                       crypt_decoder=crypt_decoder,
-                                       allowed_teamdrives=conf.configs['GOOGLE']['TEAMDRIVES'])
+    manager = drive.GoogleDriveManager(
+        conf.configs['GOOGLE']['CLIENT_ID'],
+        conf.configs['GOOGLE']['CLIENT_SECRET'],
+        conf.settings['cachefile'],
+        allowed_config=conf.configs['GOOGLE']['ALLOWED'],
+        show_cache_logs=conf.configs['GOOGLE']['SHOW_CACHE_LOGS'],
+        crypt_decoder=crypt_decoder,
+        allowed_teamdrives=conf.configs['GOOGLE']['TEAMDRIVES'],
+    )
 
     if not manager.is_authorized():
         logger.error("Failed to validate Google Drive Access Token.")
@@ -302,7 +327,7 @@ def manual_scan():
     page = """<!DOCTYPE html>
     <html lang="en">
         <head>
-            <title>Plex Autoscan</title>
+            <title>Autoscan</title>
             <meta charset="utf-8">
             <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/css/bootstrap.min.css" rel="stylesheet">
         </head>
@@ -310,8 +335,7 @@ def manual_scan():
             <div class="container">
                 <div class="row justify-content-md-center">
                     <div class="col-md-auto text-center" style="padding-top: 10px;">
-                        <h1 style="margin: 10px; margin-bottom: 150px;">Plex Autoscan</h1>
-
+                        <h1 style="margin: 10px; margin-bottom: 150px;">Autoscan</h1>
                         <h3 class="text-left" style="margin: 10px;">Path to scan</h3>
                         <form action="" method="post">
                             <div class="input-group mb-3" style="width: 600px;">
@@ -349,14 +373,17 @@ def client_pushed():
         # ignore this request?
         ignore, ignore_match = utils.should_ignore(final_path, conf.configs)
         if ignore:
-            logger.info("Ignored scan request for '%s' because '%s' was matched from SERVER_IGNORE_LIST", final_path,
-                        ignore_match)
+            logger.info(
+                "Ignored scan request for '%s' because '%s' was matched from SERVER_IGNORE_LIST",
+                final_path,
+                ignore_match,
+            )
             return "Ignoring scan request because %s was matched from your SERVER_IGNORE_LIST" % ignore_match
         if start_scan(final_path, 'Manual', 'Manual'):
             return """<!DOCTYPE html>
             <html lang="en">
             <head>
-                <title>Plex Autoscan</title>
+                <title>Autoscan</title>
                 <meta charset="utf-8">
                 <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/css/bootstrap.min.css" rel="stylesheet">
             </head>
@@ -364,7 +391,7 @@ def client_pushed():
                 <div class="container">
                     <div class="row justify-content-md-center">
                         <div class="col-md-auto text-center" style="padding-top: 10px;">
-                            <h1 style="margin: 10px; margin-bottom: 150px;">Plex Autoscan</h1>
+                            <h1 style="margin: 10px; margin-bottom: 150px;">Autoscan</h1>
                             <h3 class="text-left" style="margin: 10px;">Success</h3>
                             <div class="alert alert-info" role="alert">
                                 <code style="color: #000;">'{0}'</code> was added to scan queue.
@@ -373,12 +400,14 @@ def client_pushed():
                     </div>
                 </div>
             </body>
-            </html>""".format(final_path)
+            </html>""".format(
+                final_path
+            )
         else:
             return """<!DOCTYPE html>
             <html lang="en">
             <head>
-                <title>Plex Autoscan</title>
+                <title>Autoscan</title>
                 <meta charset="utf-8">
                 <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/css/bootstrap.min.css" rel="stylesheet">
             </head>
@@ -386,7 +415,7 @@ def client_pushed():
                 <div class="container">
                     <div class="row justify-content-md-center">
                         <div class="col-md-auto text-center" style="padding-top: 10px;">
-                            <h1 style="margin: 10px; margin-bottom: 150px;">Plex Autoscan</h1>
+                            <h1 style="margin: 10px; margin-bottom: 150px;">Autoscan</h1>
                             <h3 class="text-left" style="margin: 10px;">Error</h3>
                             <div class="alert alert-danger" role="alert">
                                 <code style="color: #000;">'{0}'</code> has already been added to the scan queue.
@@ -395,31 +424,51 @@ def client_pushed():
                     </div>
                 </div>
             </body>
-            </html>""".format(data['filepath'])
+            </html>""".format(
+                data['filepath']
+            )
 
     elif 'series' in data and 'eventType' in data and data['eventType'] == 'Rename' and 'path' in data['series']:
         # sonarr Rename webhook
-        logger.info("Client %r scan request for series: '%s', event: '%s'", request.remote_addr, data['series']['path'],
-                    "Upgrade" if ('isUpgrade' in data and data['isUpgrade']) else data['eventType'])
+        logger.info(
+            "Client %r scan request for series: '%s', event: '%s'",
+            request.remote_addr,
+            data['series']['path'],
+            "Upgrade" if ('isUpgrade' in data and data['isUpgrade']) else data['eventType'],
+        )
         final_path = utils.map_pushed_path(conf.configs, data['series']['path'])
-        start_scan(final_path, 'Sonarr',
-                   "Upgrade" if ('isUpgrade' in data and data['isUpgrade']) else data['eventType'])
+        start_scan(
+            final_path, 'Sonarr', "Upgrade" if ('isUpgrade' in data and data['isUpgrade']) else data['eventType']
+        )
 
     elif 'movie' in data and 'eventType' in data and data['eventType'] == 'Rename' and 'folderPath' in data['movie']:
         # radarr Rename webhook
-        logger.info("Client %r scan request for movie: '%s', event: '%s'", request.remote_addr,
-                    data['movie']['folderPath'],
-                    "Upgrade" if ('isUpgrade' in data and data['isUpgrade']) else data['eventType'])
+        logger.info(
+            "Client %r scan request for movie: '%s', event: '%s'",
+            request.remote_addr,
+            data['movie']['folderPath'],
+            "Upgrade" if ('isUpgrade' in data and data['isUpgrade']) else data['eventType'],
+        )
         final_path = utils.map_pushed_path(conf.configs, data['movie']['folderPath'])
-        start_scan(final_path, 'Radarr',
-                   "Upgrade" if ('isUpgrade' in data and data['isUpgrade']) else data['eventType'])
+        start_scan(
+            final_path, 'Radarr', "Upgrade" if ('isUpgrade' in data and data['isUpgrade']) else data['eventType']
+        )
 
-    elif 'movie' in data and 'movieFile' in data and 'folderPath' in data['movie'] and \
-            'relativePath' in data['movieFile'] and 'eventType' in data:
+    elif (
+        'movie' in data
+        and 'movieFile' in data
+        and 'folderPath' in data['movie']
+        and 'relativePath' in data['movieFile']
+        and 'eventType' in data
+    ):
         # radarr download/upgrade webhook
         path = os.path.join(data['movie']['folderPath'], data['movieFile']['relativePath'])
-        logger.info("Client %r scan request for movie: '%s', event: '%s'", request.remote_addr, path,
-                    "Upgrade" if ('isUpgrade' in data and data['isUpgrade']) else data['eventType'])
+        logger.info(
+            "Client %r scan request for movie: '%s', event: '%s'",
+            request.remote_addr,
+            path,
+            "Upgrade" if ('isUpgrade' in data and data['isUpgrade']) else data['eventType'],
+        )
         final_path = utils.map_pushed_path(conf.configs, path)
 
         # parse scan inputs
@@ -437,19 +486,31 @@ def client_pushed():
                 scan_lookup_id = data['remoteMovie']['tmdbId']
                 scan_lookup_type = 'TheMovieDB'
 
-            scan_title = data['remoteMovie']['title'] if 'title' in data['remoteMovie'] and data['remoteMovie'][
-                'title'] else None
+            scan_title = (
+                data['remoteMovie']['title']
+                if 'title' in data['remoteMovie'] and data['remoteMovie']['title']
+                else None
+            )
 
         # start scan
-        start_scan(final_path, 'Radarr',
-                   "Upgrade" if ('isUpgrade' in data and data['isUpgrade']) else data['eventType'], scan_title,
-                   scan_lookup_type, scan_lookup_id)
+        start_scan(
+            final_path,
+            'Radarr',
+            "Upgrade" if ('isUpgrade' in data and data['isUpgrade']) else data['eventType'],
+            scan_title,
+            scan_lookup_type,
+            scan_lookup_id,
+        )
 
     elif 'series' in data and 'episodeFile' in data and 'eventType' in data:
         # sonarr download/upgrade webhook
         path = os.path.join(data['series']['path'], data['episodeFile']['relativePath'])
-        logger.info("Client %r scan request for series: '%s', event: '%s'", request.remote_addr, path,
-                    "Upgrade" if ('isUpgrade' in data and data['isUpgrade']) else data['eventType'])
+        logger.info(
+            "Client %r scan request for series: '%s', event: '%s'",
+            request.remote_addr,
+            path,
+            "Upgrade" if ('isUpgrade' in data and data['isUpgrade']) else data['eventType'],
+        )
         final_path = utils.map_pushed_path(conf.configs, path)
 
         # parse scan inputs
@@ -457,16 +518,21 @@ def client_pushed():
         scan_lookup_type = None
         scan_lookup_id = None
         if 'series' in data:
-            scan_lookup_id = data['series']['tvdbId'] if 'tvdbId' in data['series'] and data['series'][
-                'tvdbId'] else None
+            scan_lookup_id = (
+                data['series']['tvdbId'] if 'tvdbId' in data['series'] and data['series']['tvdbId'] else None
+            )
             scan_lookup_type = 'TheTVDB' if scan_lookup_id is not None else None
-            scan_title = data['series']['title'] if 'title' in data['series'] and data['series'][
-                'title'] else None
+            scan_title = data['series']['title'] if 'title' in data['series'] and data['series']['title'] else None
 
         # start scan
-        start_scan(final_path, 'Sonarr',
-                   "Upgrade" if ('isUpgrade' in data and data['isUpgrade']) else data['eventType'], scan_title,
-                   scan_lookup_type, scan_lookup_id)
+        start_scan(
+            final_path,
+            'Sonarr',
+            "Upgrade" if ('isUpgrade' in data and data['isUpgrade']) else data['eventType'],
+            scan_title,
+            scan_lookup_type,
+            scan_lookup_id,
+        )
 
     elif 'artist' in data and 'trackFiles' in data and 'eventType' in data:
         # lidarr download/upgrade webhook
@@ -475,11 +541,16 @@ def client_pushed():
                 continue
 
             path = track['path'] if 'path' in track else os.path.join(data['artist']['path'], track['relativePath'])
-            logger.info("Client %r scan request for album track: '%s', event: '%s'", request.remote_addr, path,
-                        "Upgrade" if ('isUpgrade' in data and data['isUpgrade']) else data['eventType'])
+            logger.info(
+                "Client %r scan request for album track: '%s', event: '%s'",
+                request.remote_addr,
+                path,
+                "Upgrade" if ('isUpgrade' in data and data['isUpgrade']) else data['eventType'],
+            )
             final_path = utils.map_pushed_path(conf.configs, path)
-            start_scan(final_path, 'Lidarr',
-                       "Upgrade" if ('isUpgrade' in data and data['isUpgrade']) else data['eventType'])
+            start_scan(
+                final_path, 'Lidarr', "Upgrade" if ('isUpgrade' in data and data['isUpgrade']) else data['eventType']
+            )
 
     else:
         logger.error("Unknown scan request from: %r", request.remote_addr)
@@ -498,17 +569,20 @@ if __name__ == "__main__":
     f = Figlet(font='slant', width=100)
     print(f.renderText('Autoscan'))
 
-    logger.info("""
+    logger.info(
+        """
 #########################################################################
-# Title:    Plex Autoscan                                               #
-# Author:   l3uddz                                                      #
-# URL:      https://github.com/l3uddz/plex_autoscan                     #
 # --                                                                    #
-#         Part of the Cloudbox project: https://cloudbox.works          #
+# Original Author:   l3uddz                                             #
+# Forked by:         NiNiyas                                            #
+# URL:               https://github.com/l3uddz/plex_autoscan            #
+# Fork URL:          https://github.com/NiNiyas/autoscan                #
+# --                                                                    #
 #########################################################################
 #                   GNU General Public License v3.0                     #
 #########################################################################
-""")
+"""
+    )
     if conf.args['cmd'] == 'sections':
         plex.show_detailed_sections_info(conf)
         exit(0)
@@ -524,10 +598,12 @@ if __name__ == "__main__":
         else:
             logger.debug("client_id: %r", conf.configs['GOOGLE']['CLIENT_ID'])
             logger.debug("client_secret: %r", conf.configs['GOOGLE']['CLIENT_SECRET'])
-            google_drive = drive.GoogleDrive(conf.configs['GOOGLE']['CLIENT_ID'],
-                                             conf.configs['GOOGLE']['CLIENT_SECRET'],
-                                             conf.settings['cachefile'],
-                                             allowed_config=conf.configs['GOOGLE']['ALLOWED'])
+            google_drive = drive.GoogleDrive(
+                conf.configs['GOOGLE']['CLIENT_ID'],
+                conf.configs['GOOGLE']['CLIENT_SECRET'],
+                conf.settings['cachefile'],
+                allowed_config=conf.configs['GOOGLE']['ALLOWED'],
+            )
 
             # Provide authorization link
             logger.info("Visit the link below and paste the authorization code: ")
@@ -552,22 +628,25 @@ if __name__ == "__main__":
         if conf.configs['GOOGLE']['ENABLED']:
             start_google_monitor()
 
-        logger.info("Starting server: http://%s:%d/%s",
-                    conf.configs['SERVER_IP'],
-                    conf.configs['SERVER_PORT'],
-                    conf.configs['SERVER_PASS']
-                    )
+        logger.info(
+            "Starting server: http://%s:%d/%s",
+            conf.configs['SERVER_IP'],
+            conf.configs['SERVER_PORT'],
+            conf.configs['SERVER_PASS'],
+        )
         app.run(host=conf.configs['SERVER_IP'], port=conf.configs['SERVER_PORT'], debug=False, use_reloader=False)
         logger.info("Server stopped")
         exit(0)
     elif conf.args['cmd'] == 'build_caches':
         logger.info("Building caches")
         # load google drive manager
-        manager = drive.GoogleDriveManager(conf.configs['GOOGLE']['CLIENT_ID'],
-                                           conf.configs['GOOGLE']['CLIENT_SECRET'],
-                                           conf.settings['cachefile'],
-                                           allowed_config=conf.configs['GOOGLE']['ALLOWED'],
-                                           allowed_teamdrives=conf.configs['GOOGLE']['TEAMDRIVES'])
+        manager = drive.GoogleDriveManager(
+            conf.configs['GOOGLE']['CLIENT_ID'],
+            conf.configs['GOOGLE']['CLIENT_SECRET'],
+            conf.settings['cachefile'],
+            allowed_config=conf.configs['GOOGLE']['ALLOWED'],
+            allowed_teamdrives=conf.configs['GOOGLE']['TEAMDRIVES'],
+        )
 
         if not manager.is_authorized():
             logger.error("Failed to validate Google Drive Access Token.")

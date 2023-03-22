@@ -5,7 +5,6 @@
 [![GitHub last commit](https://img.shields.io/github/last-commit/NiNiyas/autoscan?color=177DC1&style=for-the-badge&logo=github)](https://github.com/NiNiyas/autoscan/commits/master)
 ---
 Fork of [plex_autoscan](https://github.com/l3uddz/plex_autoscan) by [l3uddz](https://github.com/l3uddz).
-<!-- TOC depthFrom:1 depthTo:2 withLinks:1 updateOnSave:0 orderedList:0 -->
 
 - [Introduction](#introduction)
 - [Requirements](#requirements)
@@ -22,10 +21,6 @@ Fork of [plex_autoscan](https://github.com/l3uddz/plex_autoscan) by [l3uddz](htt
 - [Setup](#setup)
     - [Sonarr and Radarr](#sonarr-and-radarr)
     - [Lidarr](#lidarr)
-- [Donate](#donate)
-
-<!-- /TOC -->
----
 
 # Introduction
 
@@ -39,49 +34,45 @@ folders for music) of the media file (versus scanning the entire library folder)
 be scanned.
 
 In addition to the above, Autoscan can also monitor Google Drive for updates. When a new file is detected, it is
-checked against the Plex database and if this file is missing, a new scan request is sent to Plex and/or Jellyfin/Emby (see section [below](#google-drive-monitoring)).
+checked against the Plex database and if this file is missing, a new scan request is sent to Plex and/or Jellyfin/Emby (
+see section [below](#google-drive-monitoring)).
 
 Autoscan is installed on the same server as the Plex and/or Jellyfin/Emby.
 
 # Requirements
 
-1. Any OS that supports Python.
-
-2. Python 3.0 or higher (`sudo apt install python python-pip`).
-
-3. requirements.txt modules (see below).
+1. Any OS that supports Python 3 or higher.
 
 # Installation
 
 ## Ubuntu/Debian
 
 1. `cd /opt`
-
 2. `sudo git clone https://github.com/niniyas/autoscan`
-
 3. `sudo chown -R user:group autoscan` - Run `id` to find your user / group.
-
 4. `cd autoscan`
-
 5. `sudo python -m pip install -r requirements.txt`
-
 6. `python scan.py sections` for Plex or `python scan.py jesections` for Jellyfin/Emby.- Run once to generate a
    default `config.json` file.
-
 7. Edit `/opt/autoscan/config/config.json` - Configure settings (do this before moving on).
-
 8. Edit `/opt/autoscan/system/autoscan.service` - Change two instances of `YOUR_USER` to your user and group (
    do this before moving on).
-
 9. `sudo cp /opt/autoscan/system/autoscan.service /etc/systemd/system/`
-
 10. `sudo systemctl daemon-reload`
-
 11. `sudo systemctl enable autoscan.service`
-
 12. `sudo systemctl start autoscan.service`
 
 ## Docker
+
+Pulling `ghcr.io/niniyas/autoscan:latest` should retrieve the correct image for your arch, but you can also pull
+specific arch images via tags.
+
+The architectures supported by this image are:
+
+| Architecture |  Tag  |
+|:------------:|:-----:|
+|    x86-64    | amd64 |
+|    arm64     | arm64 |
 
 ### Docker Compose
 
@@ -90,23 +81,34 @@ version: "3.9"
 services:
   autoscan:
     container_name: Autoscan
-    image: ghcr.io/niniyas/autoscan:amd64 # or arm64
+    image: ghcr.io/niniyas/autoscan:latest
     volumes:
-      - ./autoscan_config:/config
+      - /path/to/data:/config
       - /var/run/docker.sock:/var/run/docker.sock # needed if you are running plex in docker.
-      - /var/Library/Application Support/Plex Media Server/Plug-in Support/Databases/:/plexDb
+      - /path/to/plexdb:/plexDb
     ports:
       - "3468:3468/tcp"
     environment:
       - PUID=1000
       - PGID=1000
+      - UMASK=002
       - TZ=Europe/Brussels
 ```
 
-### Docker Run
+### Docker CLI
 
 ```shell
-docker run -p 3468:3468/tcp -v ./autoscan_config:/config -v /var/run/docker.sock:/var/run/docker.sock -v /var/Library/Application Support/Plex Media Server/Plug-in Support/Databases/:/plexDb --name Autoscan ghcr.io/niniyas/autoscan:amd64
+docker run -d \
+    --name=Autoscan \
+    -e PUID=1000 \
+    -e PGID=1000 \
+    -e UMASK=002 \
+    -e TZ=Europe/Brussels \
+    -p 3468:3468/tcp \
+    -v /path/to/data:/config \
+    -v /path/to/plexdb:/plexDb \
+    -v /var/run/docker.sock:/var/run/docker.sock \
+    ghcr.io/niniyas/autoscan:latest
 ```
 
 In most cases you'll need to add additional volumes, to access your files.
@@ -181,13 +183,9 @@ Plex Media Server options.
 to `true`.
 
 - Native Install: User account (on the host) that Plex runs as.
-
 - Docker Install: User account within the container. Depends on the Docker image being used.
-
     - [plexinc/pms-docker](https://github.com/plexinc/pms-docker): `"plex"`
-
     - [linuxserver/plex](https://github.com/linuxserver/docker-plex): `"abc"`
-
 - Default is `"plex"`.
 
 `PLEX_TOKEN` - Plex Access Token. This is used for checking Plex's status, emptying trash, or analyzing media.
@@ -196,24 +194,22 @@ to `true`.
 
   or
 
-- Read article from [Plex Support](https://support.plex.tv/hc/en-us/articles/204059436-Finding-an-authentication-token-X-Plex-Token).
+- Read article
+  from [Plex Support](https://support.plex.tv/hc/en-us/articles/204059436-Finding-an-authentication-token-X-Plex-Token).
 
 `PLEX_LOCAL_URL` - URL of the Plex Media Server. Can be localhost or http/https address.
 
 - Examples:
-
     - `"http://localhost:32400"` (native install; docker with port 32400 exposed)
-
     - `"https://plex.domain.com"` (custom domain with reverse proxy enabled)
 
-`PLEX_CHECK_BEFORE_SCAN` - When set to `true`, check and wait for Plex to respond before processing a scan request.
-Default is `false`.
+`PLEX_CHECK_BEFORE_SCAN` - When set to `false`, autoscan will not check if plex is reachable.
+Default is `true`.
 
 `PLEX_WAIT_FOR_EXTERNAL_SCANNERS` - When set to `true`, wait for other Plex Media Scanner processes to finish, before
 launching a new one.
 
 - For hosts running a single Plex Docker instance, this can be left as `true`.
-
 - For multiple Plex Docker instances on a host, set this as `false`.
 
 `PLEX_ANALYZE_TYPE` - How Plex will analyze the media files that are scanned. Options are `off`, `basic`, `deep`. `off`
@@ -250,39 +246,32 @@ _Note: Verify the settings below by running the Plex Section IDs command (see be
 
 `PLEX_LD_LIBRARY_PATH`
 
-- Native Install: `"/usr/lib/plexmediaserver/lib"`
-
-- Docker Install: Path within the container. Depends on the Docker image being used.
-
+- Native Install:
+    - `"/usr/lib/plexmediaserver/lib"`
+- Docker Install: Path within the container. Depends on the image being used.
     - [plexinc/pms-docker](https://github.com/plexinc/pms-docker): `"/usr/lib/plexmediaserver/lib"`
-
     - [linuxserver/plex](https://github.com/linuxserver/docker-plex): `"/usr/lib/plexmediaserver/lib"`
 
 `PLEX_SCANNER` - Location of Plex Media Scanner binary.
 
-- Native Install: `"/usr/lib/plexmediaserver/Plex\\ Media\\ Scanner"`
-
-- Docker Install: Path within the container. Depends on the Docker image being used.
-
+- Native Install:
+    - `"/usr/lib/plexmediaserver/Plex\\ Media\\ Scanner"`
+- Docker Install: Path within the container. Depends on the image being used.
     - [plexinc/pms-docker](https://github.com/plexinc/pms-docker): `"/usr/lib/plexmediaserver/Plex\\ Media\\ Scanner"`
-
     - [linuxserver/plex](https://github.com/linuxserver/docker-plex): `"/usr/lib/plexmediaserver/Plex\\ Media\\ Scanner"`
 
 `PLEX_SUPPORT_DIR` - Location of Plex "Application Support" path.
 
-- Native Install: `"/var/lib/plexmediaserver/Library/Application\\ Support"`
-
-- Docker Install: Path within the container. Depends on the Docker image being used.
-
+- Native Install:
+    - `"/var/lib/plexmediaserver/Library/Application\\ Support"`
+- Docker Install: Path within the container. Depends on the image being used.
     - [plexinc/pms-docker](https://github.com/plexinc/pms-docker): `"/var/lib/plexmediaserver/Library/Application\\ Support"`
-
     - [linuxserver/plex](https://github.com/linuxserver/docker-plex): `"/config/Library/Application\\ Support"`
 
 `PLEX_DATABASE_PATH` - Location of Plex library database.
 
-- Native
-  Install: `"/var/lib/plexmediaserver/Library/Application Support/Plex Media Server/Plug-in Support/Databases/com.plexapp.plugins.library.db"`
-
+- Native Install:
+    - `"/var/lib/plexmediaserver/Library/Application Support/Plex Media Server/Plug-in Support/Databases/com.plexapp.plugins.library.db"`
 - Docker Install: If Autoscan is running directly on the host, this will be the path on the host. If Autoscan
   is running inside a Plex container, this will be a path within the container.
 
@@ -346,9 +335,6 @@ even if there are 0 missing files. If `false`, trash will only be emptied when t
 items. Default is `false`.
 
 ## Jellyfin/Emby
-
-If you need to use this just with Jellyfin/Emby, use the [beta](https://github.com/NiNiyas/autoscan/tree/beta) branch. \
-Docker image for beta branch is available as `ghcr.io/niniyas/autoscan:beta_amd64 # or beta_arm64`
 
 ### Basics
 
@@ -579,18 +565,13 @@ Analyze commands.
 filepath. Default is `false`.
 
 - All path mappings and section ID mappings, of the server, apply.
-
 - This is also a good way of testing your configuration, manually.
-
 - To send a manual scan, you can either:
-
     - Visit your webhook url in a browser (e.g. http://ipaddress:3468/0c1fa3c9867e48b1bb3aa055cb86), and fill in the
       path to scan.
-
-      ![](https://i.imgur.com/KTrbShI.png)
+      ![](assets/autoscan.png)
 
       or
-
     - Initiate a scan via HTTP (e.g. curl):
 
       ```
@@ -600,9 +581,9 @@ filepath. Default is `false`.
 `SERVER_IGNORE_LIST` - List of paths or filenames to ignore when a requests are sent to Autoscan manually (see
 above). Case sensitive.
 
-- For
-  example, `curl -d "eventType=Manual&filepath=/mnt/unionfs/Media/Movies/Thumbs.db" http://ipaddress:3468/0c1fa3c9867e48b1bb3aa055cb86`
-  would be ignored if `Thumbs.db` was in the ignore list.
+- For example:
+    - `curl -d "eventType=Manual&filepath=/mnt/unionfs/Media/Movies/Thumbs.db" http://ipaddress:3468/0c1fa3c9867e48b1bb3aa055cb86`
+      would be ignored if `Thumbs.db` was in the ignore list.
 
 `SERVER_SCAN_PRIORITIES` - What paths are picked first when multiple scan requests are being processed.
 
@@ -671,9 +652,7 @@ folder is already in the process queue, the duplicate request will be ignored.
 `ALLOWED` - Specify what paths, extensions, and mime types to whitelist.
 
 - `FILE_PATHS` - What paths to monitor.
-
     - Example ("My Drive" only):
-
       ```json
       "FILE_PATHS": [
         "My Drive/Media/Movies/",
@@ -681,7 +660,6 @@ folder is already in the process queue, the duplicate request will be ignored.
       ],
       ```
     - Example ("My Drive" with Teamdrives):
-
       ```json
       "FILE_PATHS": [
         "My Drive/Media/Movies/",
@@ -693,11 +671,8 @@ folder is already in the process queue, the duplicate request will be ignored.
       ```    
 
 - `FILE_EXTENSIONS` - To filter files based on their file extensions. Default is `true`.
-
 - `FILE_EXTENSIONS_LIST` - What file extensions to monitor. Requires `FILE_EXTENSIONS` to be enabled.
-
     - Example:
-
       ```json
       "FILE_EXTENSIONS_LIST": [
         "webm","mkv","flv","vob","ogv","ogg","drc","gif",
@@ -710,7 +685,6 @@ folder is already in the process queue, the duplicate request will be ignored.
       ```
 
 - `MIME_TYPES` - To filter files based on their mime types. Default is `true`.
-
 - `MIME_TYPES_LIST` - What file extensions to monitor. Requires `MIME_TYPES` to be enabled.
 
     - Example:
@@ -728,7 +702,6 @@ folder is already in the process queue, the duplicate request will be ignored.
 `TEAMDRIVES` - What Team Drives to monitor. Requires `TEAMDRIVE` to be enabled.
 
 - Format:
-
   ```json
   "TEAMDRIVES": [
     "NAME_OF_TEAMDRIVE_1",
@@ -737,16 +710,13 @@ folder is already in the process queue, the duplicate request will be ignored.
   ```
 
 - Example:
-
   For 2 Teamdrives named `Shared_Movies` and `Shared_TV`.
-
   ```json
   "TEAMDRIVES": [
     "Shared_Movies",
     "Shared_TV"
   ],
   ```
-
 - _Note: This is just a list of Teamdrives, not the specific paths within it._
 
 `POLL_INTERVAL` - How often (in seconds) to check for Google Drive changes.
@@ -760,8 +730,7 @@ folder is already in the process queue, the duplicate request will be ignored.
 `CRYPT_MAPPINGS` - Mapping of path (root or subfolder) of Google Drive crypt (`My Drive/` or `Team Drive Name/`) to
 rclone mount name. These values enable rclone crypt decoder.
 
-- Example: Crypt folder on drive called `encrypt` mapped to rclone crypt mount called `grypt:`.
-
+- Example: Crypt folder on drive called `encrypt` mapped to rclone crypt mount called `gcrypt:`.
   ```json
   "CRYPT_MAPPINGS": {
     "My Drive/encrypt/": [
@@ -770,7 +739,6 @@ rclone mount name. These values enable rclone crypt decoder.
   },
   ```
 - Example: Crypt Teamdrive named `Shared_TV` mapped to rclone crypt mount called `Shared_TV_crypt:`.
-
   ```json
   "CRYPT_MAPPINGS": {
     "Shared_TV/": [
@@ -1007,83 +975,41 @@ Setup instructions to connect Sonarr/Radarr/Lidarr to Autoscan.
 ## Sonarr and Radarr
 
 1. Sonarr/Radarr -> Settings -> Connect.
-
 2. Add a new Webhook.
-
 3. Add the following:
-
-    -  Name: Autoscan
-
-    -  On Grab: `No`
-
-    -  On Download: `Yes`
-
-    -  On Upgrade:  `Yes`
-
-    -  On Rename: `Yes`
-
-    -  Filter Series Tags: _Leave Blank_
-
-    -  URL: _Your Autoscan Webhook URL_
-
-    -  Method:`POST`
-
-    -  Username: _Leave Blank_
-
-    -  Password: _Leave Blank_
-
+    - Name: Autoscan
+    - On Grab: `No`
+    - On Download: `Yes`
+    - On Upgrade:  `Yes`
+    - On Rename: `Yes`
+    - Filter Series Tags: _Leave Blank_
+    - URL: _Your Autoscan Webhook URL_
+    - Method:`POST`
+    - Username: _Leave Blank_
+    - Password: _Leave Blank_
 4. The settings will look like this:
-
    ![Sonarr Autoscan](assets/arr.png)
-
 5. Click Save to add Autoscan.
 
 ## Lidarr
 
 1. Lidarr -> "Settings" -> "Connect".
-
 2. Add a new "Webhook" Notification.
-
 3. Add the following:
-
-    -  Name: Autoscan
-
-    -  On Grab: `No`
-
-    -  On Album Import: `No`
-
-    -  On Track Import: `Yes`
-
-    -  On Track Upgrade:  `Yes`
-
-    -  On Rename: `Yes`
-
-    -  Tags: _Leave Blank_
-
-    -  URL: _Your Autoscan Webhook URL_
-
-    -  Method:`POST`
-
-    -  Username: _Leave Blank_
-
-    -  Password: _Leave Blank_
-
+    - Name: Autoscan
+    - On Grab: `No`
+    - On Album Import: `No`
+    - On Track Import: `Yes`
+    - On Track Upgrade:  `Yes`
+    - On Rename: `Yes`
+    - Tags: _Leave Blank_
+    - URL: _Your Autoscan Webhook URL_
+    - Method:`POST`
+    - Username: _Leave Blank_
+    - Password: _Leave Blank_
 4. The settings will look like this:
-
    ![Lidarr Autoscan](https://i.imgur.com/43uZloh.png)
-
 5. Click Save to add Autoscan.
 
 ***
 
-# Donate
-
-If you find this project helpful, feel free to make a small donation to the developer:
-
-- [Monzo](https://monzo.me/today): Credit Cards, Apple Pay, Google Pay
-
-- [Beerpay](https://beerpay.io/l3uddz/traktarr): Credit Cards
-
-- [Paypal: l3uddz@gmail.com](https://www.paypal.me/l3uddz)
-
-- BTC: 3CiHME1HZQsNNcDL6BArG7PbZLa8zUUgjL

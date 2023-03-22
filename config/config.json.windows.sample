@@ -44,7 +44,7 @@
   "PLEX_SUPPORT_DIR": "%LOCALAPPDATA%\\Plex Media Server",
   "PLEX_USER": "plex",
   "PLEX_TOKEN": "",
-  "PLEX_CHECK_BEFORE_SCAN": false,
+  "PLEX_CHECK_BEFORE_SCAN": true
   "PLEX_WAIT_FOR_EXTERNAL_SCANNERS": true,
   "RCLONE": {
     "BINARY": "%ChocolateyInstall%\\bin\\rclone.exe",

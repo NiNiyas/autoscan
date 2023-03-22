@@ -1,10 +1,8 @@
 import logging
 import os
 
-
-from peewee import Model, SqliteDatabase, CharField, IntegerField
-
 import config
+from peewee import Model, SqliteDatabase, CharField, IntegerField
 
 logger = logging.getLogger("DB")
 
@@ -72,10 +70,14 @@ def get_all_items():
     items = []
     try:
         for item in QueueItemModel.select():
-            items.append({'scan_path': item.scan_path,
-                          'scan_for': item.scan_for,
-                          'scan_type': item.scan_type,
-                          'scan_section': item.scan_section})
+            items.append(
+                {
+                    'scan_path': item.scan_path,
+                    'scan_for': item.scan_for,
+                    'scan_type': item.scan_type,
+                    'scan_section': item.scan_section,
+                }
+            )
     except Exception:
         logger.exception("Exception getting all items from Plex Autoscan database: ")
         return None
@@ -102,8 +104,9 @@ def remove_item(scan_path):
 def add_item(scan_path, scan_for, scan_section, scan_type):
     item = None
     try:
-        return QueueItemModel.create(scan_path=scan_path, scan_for=scan_for, scan_section=scan_section,
-                                     scan_type=scan_type)
+        return QueueItemModel.create(
+            scan_path=scan_path, scan_for=scan_for, scan_section=scan_section, scan_type=scan_type
+        )
     except AttributeError as ex:
         return item
     except Exception:

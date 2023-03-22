@@ -7,15 +7,10 @@ import sys
 import time
 from contextlib import closing
 from copy import copy
-
-import requests
-
-try:
-    from urlparse import urljoin
-except ImportError:
-    from urllib.parse import urljoin
+from urllib.parse import urljoin
 
 import psutil
+import requests
 
 logger = logging.getLogger("UTILS")
 
@@ -31,8 +26,11 @@ def get_plex_section(config, path):
                 section_data = c.execute("SELECT library_section_id,root_path FROM section_locations").fetchall()
                 for section_id, root_path in section_data:
                     if path.startswith(root_path + os.sep):
-                        logger.debug("Plex Library Section ID '%d' matching root folder '%s' was found in the Plex DB.",
-                                     section_id, root_path)
+                        logger.debug(
+                            "Plex Library Section ID '%d' matching root folder '%s' was found in the Plex DB.",
+                            section_id,
+                            root_path,
+                        )
                         return int(section_id)
                 logger.error("Unable to map '%s' to a Section ID.", path)
 
@@ -91,14 +89,22 @@ def is_process_running(process_name, plex_container=None):
                     return True, process, plex_container
                 # plex_container was not None
                 # we need to check if this processes is from the container we are interested in
-                get_pid_container = "docker inspect --format '{{.Name}}' \"$(cat /proc/%s/cgroup |head -n 1 " \
-                                    "|cut -d / -f 3)\" | sed 's/^\///'" % process.pid
+                get_pid_container = (
+                    "docker inspect --format '{{.Name}}' \"$(cat /proc/%s/cgroup |head -n 1 "
+                    "|cut -d / -f 3)\" | sed 's/^\///'" % process.pid
+                )
                 process_container = run_command(get_pid_container, True)
                 logger.debug("Using: %s", get_pid_container)
-                logger.debug("Docker Container For PID %s: %r", process.pid,
-                             process_container.strip() if process_container is not None else 'Unknown???')
-                if process_container is not None and isinstance(process_container, str) and \
-                        process_container.strip().lower() == plex_container.lower():
+                logger.debug(
+                    "Docker Container For PID %s: %r",
+                    process.pid,
+                    process_container.strip() if process_container is not None else 'Unknown???',
+                )
+                if (
+                    process_container is not None
+                    and isinstance(process_container, str)
+                    and process_container.strip().lower() == plex_container.lower()
+                ):
                     return True, process, process_container.strip()
 
         return False, None, plex_container
@@ -111,18 +117,21 @@ def is_process_running(process_name, plex_container=None):
 
 def wait_running_process(process_name, use_docker=False, plex_container=None):
     try:
-        running, process, container = is_process_running(process_name,
-                                                         None if not use_docker or not plex_container else
-                                                         plex_container)
+        running, process, container = is_process_running(
+            process_name, None if not use_docker or not plex_container else plex_container
+        )
         while running and process:
-            logger.info("'%s' is running, pid: %d,%s cmdline: %r. Checking again in 60 seconds...", process.name(),
-                        process.pid,
-                        ' container: %s,' % container.strip() if use_docker and isinstance(container, str) else '',
-                        process.cmdline())
+            logger.info(
+                "'%s' is running, pid: %d,%s cmdline: %r. Checking again in 60 seconds...",
+                process.name(),
+                process.pid,
+                ' container: %s,' % container.strip() if use_docker and isinstance(container, str) else '',
+                process.cmdline(),
+            )
             time.sleep(60)
-            running, process, container = is_process_running(process_name,
-                                                             None if not use_docker or not plex_container else
-                                                             plex_container)
+            running, process, container = is_process_running(
+                process_name, None if not use_docker or not plex_container else plex_container
+            )
 
         return True
 
@@ -193,7 +202,9 @@ def rclone_rc_clear_cache(config, scan_path):
                 # is the last path we tried to clear, the same as this path, if so, abort
                 logger.error(
                     "Aborting Rclone dir cache clear request for '%s' due to directory level exhaustion, last level: '%s'",
-                    scan_path, last_clear_path)
+                    scan_path,
+                    last_clear_path,
+                )
                 return False
             else:
                 last_clear_path = cache_clear_path
@@ -210,29 +221,42 @@ def rclone_rc_clear_cache(config, scan_path):
                         resp = requests.post(rclone_rc_refresh_url, json={'dir': cache_clear_path}, timeout=120)
                         if '{' in resp.text and '}' in resp.text:
                             data = resp.json()
-                            if 'result' in data and cache_clear_path in data['result'] \
-                                    and data['result'][cache_clear_path] == 'OK':
+                            if (
+                                'result' in data
+                                and cache_clear_path in data['result']
+                                and data['result'][cache_clear_path] == 'OK'
+                            ):
                                 # successfully vfs refreshed
-                                logger.info("Successfully refreshed Rclone VFS mount's dir cache for '%s'",
-                                            cache_clear_path)
+                                logger.info(
+                                    "Successfully refreshed Rclone VFS mount's dir cache for '%s'", cache_clear_path
+                                )
                                 return True
 
-                        logger.info("Failed to clear Rclone mount's dir cache for '%s': %s", cache_clear_path,
-                                    data['error'] if 'error' in data else data)
+                        logger.info(
+                            "Failed to clear Rclone mount's dir cache for '%s': %s",
+                            cache_clear_path,
+                            data['error'] if 'error' in data else data,
+                        )
                         continue
                     elif ('status' in data and 'message' in data) and data['status'] == 'ok':
                         logger.info("Successfully cleared Rclone Cache mount's dir cache for '%s'", cache_clear_path)
                         return True
 
                 # abort on unexpected response (no json response, no error/status & message in returned json
-                logger.error("Unexpected Rclone mount dir cache clear response from %s while trying to clear '%s': %s",
-                             rclone_rc_expire_url, cache_clear_path, resp.text)
+                logger.error(
+                    "Unexpected Rclone mount dir cache clear response from %s while trying to clear '%s': %s",
+                    rclone_rc_expire_url,
+                    cache_clear_path,
+                    resp.text,
+                )
                 break
 
             except Exception:
-                logger.exception("Exception sending Rclone mount dir cache clear request to %s for '%s': ",
-                                 rclone_rc_expire_url,
-                                 cache_clear_path)
+                logger.exception(
+                    "Exception sending Rclone mount dir cache clear request to %s for '%s': ",
+                    rclone_rc_expire_url,
+                    cache_clear_path,
+                )
                 break
 
     except Exception:
@@ -272,17 +296,22 @@ def remove_files_exist_in_plex_database(config, file_paths):
                         # check if file exists in plex
                         file_name = os.path.basename(file_path)
                         file_path_plex = map_pushed_path(config, file_path)
-                        logger.debug("Checking to see if '%s' exists in the Plex DB located at '%s'", file_path_plex,
-                                     plex_db_path)
-                        found_item = c.execute("SELECT size FROM media_parts WHERE file LIKE ?",
-                                               ('%' + file_path_plex,)) \
-                            .fetchone()
+                        logger.debug(
+                            "Checking to see if '%s' exists in the Plex DB located at '%s'",
+                            file_path_plex,
+                            plex_db_path,
+                        )
+                        found_item = c.execute(
+                            "SELECT size FROM media_parts WHERE file LIKE ?", ('%' + file_path_plex,)
+                        ).fetchone()
                         file_path_actual = map_pushed_path_file_exists(config, file_path_plex)
                         # should plex file size and file size on disk be checked?
                         disk_file_size_check = True
 
-                        if 'DISABLE_DISK_FILE_SIZE_CHECK' in config['GOOGLE'] \
-                                and config['GOOGLE']['DISABLE_DISK_FILE_SIZE_CHECK']:
+                        if (
+                            'DISABLE_DISK_FILE_SIZE_CHECK' in config['GOOGLE']
+                            and config['GOOGLE']['DISABLE_DISK_FILE_SIZE_CHECK']
+                        ):
                             disk_file_size_check = False
 
                         if found_item:
@@ -295,7 +324,9 @@ def remove_files_exist_in_plex_database(config, file_paths):
                                 file_size = os.path.getsize(file_path_actual)
                                 logger.debug(
                                     "Checking to see if the file size of '%s' matches the existing file size of '%s' in the Plex DB.",
-                                    file_size, found_item[0])
+                                    file_size,
+                                    found_item[0],
+                                )
                                 if file_size == found_item[0]:
                                     logger.debug("'%s' size matches size found in the Plex DB.", file_size)
                                     skip_file = True

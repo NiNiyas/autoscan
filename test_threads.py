@@ -8,6 +8,7 @@ from threads import Thread, PriorityLock
 # MISC
 ############################################################
 
+
 def test_thread(lock, priority):
     lock.acquire(priority)
     try:

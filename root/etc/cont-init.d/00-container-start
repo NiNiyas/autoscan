@@ -1,0 +1,33 @@
+#!/usr/bin/with-contenv bash
+
+umask "${UMASK}"
+
+echo "
+----------------------------------------------------------------------
+ENVIRONMENT
+----------------------------------------------------------------------
+PUID=${PUID}
+PGID=${PGID}
+UMASK=${UMASK}
+
+TZ=${TZ}
+----------------------------------------------------------------------
+"
+
+if [[ ! "${PUID}" -eq 0 ]] && [[ ! "${PGID}" -eq 0 ]]; then
+    echo "Executing usermod..."
+    mkdir "/tmp/temphome"
+    usermod -d "/tmp/temphome" autoscan
+    usermod -o -u "${PUID}" autoscan
+    usermod -d "${CONFIG_DIR}" autoscan
+    rm -rf "/tmp/temphome"
+    groupmod -o -g "${PGID}" autoscan
+else
+    echo "Running as root is not supported, please fix your PUID and PGID!"
+    exit 1
+fi
+
+echo "Applying permissions to ${CONFIG_DIR}"
+chmod "=rwx" "${CONFIG_DIR}"
+chown -R "${PUID}":"${PGID}"  "${CONFIG_DIR}"
+chown -R "${PUID}":"${PGID}" "/plexDb"

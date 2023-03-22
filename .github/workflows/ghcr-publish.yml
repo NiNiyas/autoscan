@@ -12,57 +12,67 @@ jobs:
   build-and-push-to-ghcr:
     runs-on: ubuntu-latest
     steps:
-      - uses: benjlevesque/short-sha@v1.2
+      - name: Get Short SHA
+        uses: benjlevesque/short-sha@v2.1
         id: short-sha
         with:
           length: 7
-      - uses: actions/checkout@v2
-      - name: Log into GitHub Container Registry
+
+      - name: Checkout
+        uses: actions/checkout@v3.4.0
+
+      - name: Log into GHCR
         run: echo "${{ secrets.GIT_TOKEN }}" | docker login https://ghcr.io -u ${{ github.actor }} --password-stdin
 
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@v1
+        uses: docker/setup-qemu-action@v2.1.0
         with:
           image: tonistiigi/binfmt:latest
           platforms: all
 
       - name: Set up Docker Buildx
-        id: buildx
-        uses: docker/setup-buildx-action@v1
+        uses: docker/setup-buildx-action@v2.5.0
         with:
           install: true
           version: latest
           driver-opts: image=moby/buildkit:master
 
-      - name: Build and push aarch64
-        id: docker_build_aarch64
-        uses: docker/build-push-action@v2
+      - name: Build and push amd64
+        uses: docker/build-push-action@v4
         with:
           context: ./
           file: ./Dockerfile
           push: true
+          provenance: false
           tags: |
-            ghcr.io/niniyas/autoscan:arm64
+            ghcr.io/${{ secrets.GIT_USER }}/autoscan:amd64
+            ghcr.io/${{ secrets.GIT_USER }}/autoscan:amd64_commit-${{ steps.short-sha.outputs.sha }}
+          platforms: linux/amd64
+          build-args: |
+            OVERLAY_ARCH=amd64
+            ARCH=amd64
+
+      - name: Build and push aarch64
+        uses: docker/build-push-action@v4
+        with:
+          context: ./
+          file: ./Dockerfile
+          push: true
+          provenance: false
+          tags: |
+            ghcr.io/${{ secrets.GIT_USER }}/autoscan:arm64
             ghcr.io/${{ secrets.GIT_USER }}/autoscan:arm64_commit-${{ steps.short-sha.outputs.sha }}
           platforms: linux/arm64
           build-args: |
             OVERLAY_ARCH=aarch64
             ARCH=arm64
 
-      - name: Build and push amd64
-        id: docker_build_amd64
-        uses: docker/build-push-action@v2
+      - name: Create and push manifest images
+        uses: Noelware/docker-manifest-action@master
         with:
-          context: ./
-          file: ./Dockerfile
+          inputs: ghcr.io/${{ secrets.GIT_USER }}/autoscan:latest
+          images: ghcr.io/${{ secrets.GIT_USER }}/autoscan:amd64,ghcr.io/${{ secrets.GIT_USER }}/autoscan:arm64
           push: true
-          tags: |
-            ghcr.io/niniyas/autoscan:amd64
-            ghcr.io/${{ secrets.GIT_USER }}/autoscan:amd64_commit-${{ steps.short-sha.outputs.sha }}
-          platforms: linux/amd64
-          build-args: |
-            OVERLAY_ARCH=amd64
-            ARCH=amd64
 
       - name: ntfy success notifications
         uses: niniyas/ntfy-action@master

@@ -1,11 +1,6 @@
-try:
-    # Try the Python 3 queue module
-    import queue
-except ImportError:
-    # Fallback to the Python 2 Queue module
-    import Queue as queue
-import datetime
 import copy
+import datetime
+import queue
 import threading
 
 
