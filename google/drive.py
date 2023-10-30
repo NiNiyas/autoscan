@@ -33,7 +33,7 @@ class GoogleDriveManager:
         self.allowed_teamdrives = [] if not allowed_teamdrives else allowed_teamdrives
         self.drives = OrderedDict(
             {
-                'drive_root': GoogleDrive(
+                "drive_root": GoogleDrive(
                     client_id,
                     client_secret,
                     cache_path,
@@ -46,18 +46,21 @@ class GoogleDriveManager:
 
     def load_teamdrives(self):
         loaded_teamdrives = 0
-        teamdrives = self.drives['drive_root'].get_teamdrives()
+        teamdrives = self.drives["drive_root"].get_teamdrives()
 
-        if not teamdrives or 'teamDrives' not in teamdrives:
+        if not teamdrives or "teamDrives" not in teamdrives:
             logger.error("Failed to retrieve teamdrive list...")
             return False
 
-        teamdrives = teamdrives['teamDrives']
+        teamdrives = teamdrives["teamDrives"]
         for teamdrive in teamdrives:
-            teamdrive_name = None if 'name' not in teamdrive else teamdrive['name']
-            teamdrive_id = None if 'id' not in teamdrive else teamdrive['id']
+            teamdrive_name = None if "name" not in teamdrive else teamdrive["name"]
+            teamdrive_id = None if "id" not in teamdrive else teamdrive["id"]
             if not teamdrive_id or not teamdrive_name:
-                logger.error("TeamDrive had insufficient data associated with it, skipping:\n%s", teamdrive)
+                logger.error(
+                    "TeamDrive had insufficient data associated with it, skipping:\n%s",
+                    teamdrive,
+                )
                 continue
             if teamdrive_name not in self.allowed_teamdrives:
                 continue
@@ -72,7 +75,11 @@ class GoogleDriveManager:
                 crypt_decoder=self.crypt_decoder,
                 teamdrive_id=teamdrive_id,
             )
-            logger.debug("Loaded TeamDrive GoogleDrive instance for: %s (id = %s)", teamdrive_name, teamdrive_id)
+            logger.debug(
+                "Loaded TeamDrive GoogleDrive instance for: %s (id = %s)",
+                teamdrive_name,
+                teamdrive_id,
+            )
             loaded_teamdrives += 1
 
         logger.info("Loaded %d TeamDrive GoogleDrive instances", loaded_teamdrives)
@@ -88,7 +95,7 @@ class GoogleDriveManager:
 
     def is_authorized(self):
         try:
-            return self.drives['drive_root'].validate_access_token()
+            return self.drives["drive_root"].validate_access_token()
         except Exception:
             logger.exception("Exception validating authentication token: ")
         return False
@@ -108,18 +115,18 @@ class GoogleDriveManager:
 
 
 class GoogleDrive:
-    auth_url = 'https://accounts.google.com/o/oauth2/v2/auth'
-    token_url = 'https://www.googleapis.com/oauth2/v4/token'
-    api_url = 'https://www.googleapis.com/drive/'
-    redirect_url = 'urn:ietf:wg:oauth:2.0:oob'
-    scopes = ['https://www.googleapis.com/auth/drive']
+    auth_url = "https://accounts.google.com/o/oauth2/v2/auth"
+    token_url = "https://www.googleapis.com/oauth2/v4/token"
+    api_url = "https://www.googleapis.com/drive/"
+    redirect_url = "urn:ietf:wg:oauth:2.0:oob"
+    scopes = ["https://www.googleapis.com/auth/drive"]
 
     def __init__(
         self,
         client_id,
         client_secret,
         cache_path,
-            allowed_config=None,
+        allowed_config=None,
         show_cache_logs=True,
         crypt_decoder=None,
         teamdrive_id=None,
@@ -130,8 +137,10 @@ class GoogleDrive:
         self.client_secret = client_secret
         self.cache_path = cache_path
         self.cache_manager = Cache(cache_path)
-        self.cache = self.cache_manager.get_cache('drive_root' if not teamdrive_id else 'teamdrive_%s' % teamdrive_id)
-        self.settings_cache = self.cache_manager.get_cache('settings', autocommit=True)
+        self.cache = self.cache_manager.get_cache(
+            "drive_root" if not teamdrive_id else "teamdrive_%s" % teamdrive_id
+        )
+        self.settings_cache = self.cache_manager.get_cache("settings", autocommit=True)
         self.support_team_drives = True if teamdrive_id is not None else False
         self.token = self._load_token()
         self.token_refresh_lock = Lock()
@@ -147,7 +156,7 @@ class GoogleDrive:
     ############################################################
 
     def set_page_token(self, page_token):
-        self.cache['page_token'] = page_token
+        self.cache["page_token"] = page_token
         return
 
     def set_callbacks(self, callbacks=None):
@@ -158,35 +167,52 @@ class GoogleDrive:
         return
 
     def get_auth_link(self):
-        auth_url, state = self.http.authorization_url(self.auth_url, access_type='offline', prompt='select_account')
+        auth_url, state = self.http.authorization_url(
+            self.auth_url, access_type="offline", prompt="select_account"
+        )
         return auth_url
 
     def exchange_code(self, code):
-        token = self.http.fetch_token(self.token_url, code=code, client_secret=self.client_secret)
-        if 'access_token' in token:
+        token = self.http.fetch_token(
+            self.token_url, code=code, client_secret=self.client_secret
+        )
+        if "access_token" in token:
             self._token_saver(token)
             # pull in existing team drives and create cache for them
         return self.token
 
-    def query(self, path, method='GET', page_type='changes', fetch_all_pages=False, callbacks=None, **kwargs):
+    def query(
+        self,
+        path,
+        method="GET",
+        page_type="changes",
+        fetch_all_pages=False,
+        callbacks=None,
+        **kwargs
+    ):
         if callbacks is None:
             callbacks = {}
         resp = None
         pages = 1
         resp_json = {}
-        request_url = self.api_url + path.lstrip('/') if not path.startswith('http') else path
+        request_url = (
+            self.api_url + path.lstrip("/") if not path.startswith("http") else path
+        )
 
         try:
             while True:
                 resp = self._do_query(request_url, method, **kwargs)
                 logger.debug("Request URL: %s", resp.url)
                 logger.debug("Request ARG: %s", kwargs)
-                logger.debug('Response Status: %d %s', resp.status_code, resp.reason)
-                logger.debug('Response Content:\n%s\n', resp.text)
+                logger.debug("Response Status: %d %s", resp.status_code, resp.reason)
+                logger.debug("Response Content:\n%s\n", resp.text)
 
-                if 'Content-Type' in resp.headers and 'json' in resp.headers['Content-Type']:
+                if (
+                    "Content-Type" in resp.headers
+                    and "json" in resp.headers["Content-Type"]
+                ):
                     if fetch_all_pages:
-                        resp_json.pop('nextPageToken', None)
+                        resp_json.pop("nextPageToken", None)
                     new_json = resp.json()
                     # does this page have changes
                     extended_pages = False
@@ -204,27 +230,37 @@ class GoogleDrive:
                     return False if resp.status_code != 200 else True, resp, resp.text
 
                 # call page_token_callback to update cached page_token, if specified
-                if page_type == 'changes' and 'page_token_callback' in callbacks:
-                    if 'nextPageToken' in resp_json:
-                        callbacks['page_token_callback'](resp_json['nextPageToken'])
-                    elif 'newStartPageToken' in resp_json:
-                        callbacks['page_token_callback'](resp_json['newStartPageToken'])
+                if page_type == "changes" and "page_token_callback" in callbacks:
+                    if "nextPageToken" in resp_json:
+                        callbacks["page_token_callback"](resp_json["nextPageToken"])
+                    elif "newStartPageToken" in resp_json:
+                        callbacks["page_token_callback"](resp_json["newStartPageToken"])
 
                 # call data_callback, fetch_all_pages is true
-                if page_type == 'changes' and fetch_all_pages and 'data_callback' in callbacks:
-                    callbacks['data_callback'](resp.json())
+                if (
+                    page_type == "changes"
+                    and fetch_all_pages
+                    and "data_callback" in callbacks
+                ):
+                    callbacks["data_callback"](resp.json())
 
                 # handle nextPageToken
-                if fetch_all_pages and 'nextPageToken' in resp_json and resp_json['nextPageToken']:
+                if (
+                    fetch_all_pages
+                    and "nextPageToken" in resp_json
+                    and resp_json["nextPageToken"]
+                ):
                     # there are more pages
                     pages += 1
                     logger.info("Fetching extra results from page %d", pages)
-                    if 'params' in kwargs:
-                        kwargs['params'].update({'pageToken': resp_json['nextPageToken']})
-                    elif 'json' in kwargs:
-                        kwargs['json'].update({'pageToken': resp_json['nextPageToken']})
-                    elif 'data' in kwargs:
-                        kwargs['data'].update({'pageToken': resp_json['nextPageToken']})
+                    if "params" in kwargs:
+                        kwargs["params"].update(
+                            {"pageToken": resp_json["nextPageToken"]}
+                        )
+                    elif "json" in kwargs:
+                        kwargs["json"].update({"pageToken": resp_json["nextPageToken"]})
+                    elif "data" in kwargs:
+                        kwargs["data"].update({"pageToken": resp_json["nextPageToken"]})
                     continue
 
                 break
@@ -236,7 +272,9 @@ class GoogleDrive:
             )
 
         except Exception:
-            logger.exception("Exception sending request to %s with kwargs=%s: ", request_url, kwargs)
+            logger.exception(
+                "Exception sending request to %s with kwargs=%s: ", request_url, kwargs
+            )
             return False, resp, None
 
     ############################################################
@@ -245,13 +283,13 @@ class GoogleDrive:
 
     def validate_access_token(self):
         success, resp, data = self.query(
-            '/v3/changes/startPageToken',
-            params={'supportsTeamDrives': self.support_team_drives},
+            "/v3/changes/startPageToken",
+            params={"supportsTeamDrives": self.support_team_drives},
             fetch_all_pages=True,
-            page_type='auth',
+            page_type="auth",
         )
         if success and resp.status_code == 200:
-            if 'startPageToken' not in data:
+            if "startPageToken" not in data:
                 logger.error("Failed validate up to date access_token:\n\n%s\n", data)
                 return False
             return True
@@ -264,17 +302,19 @@ class GoogleDrive:
         return False
 
     def get_changes_start_page_token(self):
-        params = {'supportsTeamDrives': self.support_team_drives}
+        params = {"supportsTeamDrives": self.support_team_drives}
 
         if self.teamdrive_id is not None and self.support_team_drives:
-            params['teamDriveId'] = self.teamdrive_id
+            params["teamDriveId"] = self.teamdrive_id
 
-        success, resp, data = self.query('/v3/changes/startPageToken', params=params, fetch_all_pages=True)
+        success, resp, data = self.query(
+            "/v3/changes/startPageToken", params=params, fetch_all_pages=True
+        )
         if success and resp.status_code == 200:
-            if 'startPageToken' not in data:
+            if "startPageToken" not in data:
                 logger.error("Failed to retrieve changes startPageToken:\n\n%s\n", data)
                 return None
-            return data['startPageToken']
+            return data["startPageToken"]
         else:
             logger.error(
                 "Error retrieving changes startPageToken, status_code = %d, data =\n\n%s\n",
@@ -285,21 +325,31 @@ class GoogleDrive:
 
     def get_teamdrives(self):
         success, resp, data = self.query(
-            '/v3/teamdrives', params={'pageSize': 100}, fetch_all_pages=True, page_type='teamDrives'
+            "/v3/teamdrives",
+            params={"pageSize": 100},
+            fetch_all_pages=True,
+            page_type="teamDrives",
         )
         if success and resp.status_code == 200:
             return data
         else:
-            logger.error('Failed to retrieve teamdrives, status_code = %d, content =\n', resp.status_code, resp.text)
+            logger.error(
+                "Failed to retrieve teamdrives, status_code = %d, content =\n",
+                resp.status_code,
+                resp.text,
+            )
         return None
 
     def get_changes(self):
-        callbacks = {'page_token_callback': self._page_token_saver, 'data_callback': self._process_changes}
+        callbacks = {
+            "page_token_callback": self._page_token_saver,
+            "data_callback": self._process_changes,
+        }
 
         # get page token
         page_token = None
-        if 'page_token' in self.cache:
-            page_token = self.cache['page_token']
+        if "page_token" in self.cache:
+            page_token = self.cache["page_token"]
         else:
             page_token = self.get_changes_start_page_token()
 
@@ -309,22 +359,24 @@ class GoogleDrive:
 
         # build params
         params = {
-            'pageToken': page_token,
-            'pageSize': 1000,
-            'includeRemoved': True,
-            'includeTeamDriveItems': self.support_team_drives,
-            'supportsTeamDrives': self.support_team_drives,
-            'fields': 'changes(file(md5Checksum,mimeType,modifiedTime,'
-            'name,parents,teamDriveId,trashed),'
-            'fileId,removed,teamDrive(id,name),'
-            'teamDriveId),newStartPageToken,nextPageToken',
+            "pageToken": page_token,
+            "pageSize": 1000,
+            "includeRemoved": True,
+            "includeTeamDriveItems": self.support_team_drives,
+            "supportsTeamDrives": self.support_team_drives,
+            "fields": "changes(file(md5Checksum,mimeType,modifiedTime,"
+            "name,parents,teamDriveId,trashed),"
+            "fileId,removed,teamDrive(id,name),"
+            "teamDriveId),newStartPageToken,nextPageToken",
         }
 
         if self.teamdrive_id is not None and self.support_team_drives:
-            params['teamDriveId'] = self.teamdrive_id
+            params["teamDriveId"] = self.teamdrive_id
 
         # make call(s)
-        success, resp, data = self.query('/v3/changes', params=params, fetch_all_pages=True, callbacks=callbacks)
+        success, resp, data = self.query(
+            "/v3/changes", params=params, fetch_all_pages=True, callbacks=callbacks
+        )
         return
 
     ############################################################
@@ -339,27 +391,30 @@ class GoogleDrive:
 
         # does item_id match teamdrive_id?
         if teamdrive_id is not None and item_id == teamdrive_id:
-            success, resp, data = self.query('v3/teamdrives/%s' % str(item_id))
-            if success and resp.status_code == 200 and 'name' in data:
+            success, resp, data = self.query("v3/teamdrives/%s" % str(item_id))
+            if success and resp.status_code == 200 and "name" in data:
                 # we successfully retrieved this teamdrive info, lets place a mimeType key in the result
                 # so we know it needs to be cached
-                data['mimeType'] = 'application/vnd.google-apps.folder'
+                data["mimeType"] = "application/vnd.google-apps.folder"
                 # lets create a cache for this teamdrive aswell
                 self.cache_manager.get_cache("teamdrive_%s" % teamdrive_id)
-                self._do_callback('teamdrive_added', data)
+                self._do_callback("teamdrive_added", data)
         else:
             # retrieve file metadata
             success, resp, data = self.query(
-                'v3/files/%s' % str(item_id),
+                "v3/files/%s" % str(item_id),
                 params={
-                    'supportsTeamDrives': self.support_team_drives,
-                    'fields': 'id,md5Checksum,mimeType,modifiedTime,name,parents,' 'trashed,teamDriveId',
+                    "supportsTeamDrives": self.support_team_drives,
+                    "fields": "id,md5Checksum,mimeType,modifiedTime,name,parents,"
+                    "trashed,teamDriveId",
                 },
             )
         if success and resp.status_code == 200:
             return True, data
         else:
-            logger.error("Error retrieving metadata for item %r:\n\n%s\n", item_id, data)
+            logger.error(
+                "Error retrieving metadata for item %r:\n\n%s\n", item_id, data
+            )
             return False, data
 
     def get_id_file_paths(self, item_id, teamdrive_id=None):
@@ -368,39 +423,49 @@ class GoogleDrive:
 
         try:
 
-            def get_item_paths(obj_id, path, paths, new_cache_entries, teamdrive_id=None):
+            def get_item_paths(
+                obj_id, path, paths, new_cache_entries, teamdrive_id=None
+            ):
                 success, obj = self.get_id_metadata(obj_id, teamdrive_id)
                 if not success:
                     return new_cache_entries
 
-                teamdrive_id = teamdrive_id if 'teamDriveId' not in obj else obj['teamDriveId']
+                teamdrive_id = (
+                    teamdrive_id if "teamDriveId" not in obj else obj["teamDriveId"]
+                )
 
                 # add item object to cache if we know its not from cache
-                if 'mimeType' in obj:
+                if "mimeType" in obj:
                     # we know this is a new item fetched from the api, because the cache does not store this field
                     self.add_item_to_cache(
-                        obj['id'],
-                        obj['name'],
-                        [] if 'parents' not in obj else obj['parents'],
-                        obj['md5Checksum'] if 'md5Checksum' in obj else None,
+                        obj["id"],
+                        obj["name"],
+                        [] if "parents" not in obj else obj["parents"],
+                        obj["md5Checksum"] if "md5Checksum" in obj else None,
                     )
                     new_cache_entries += 1
 
-                if path.strip() == '':
-                    path = obj['name']
+                if path.strip() == "":
+                    path = obj["name"]
                 else:
-                    path = os.path.join(obj['name'], path)
+                    path = os.path.join(obj["name"], path)
 
-                if 'parents' in obj and obj['parents']:
-                    for parent in obj['parents']:
-                        new_cache_entries += get_item_paths(parent, path, paths, new_cache_entries, teamdrive_id)
+                if "parents" in obj and obj["parents"]:
+                    for parent in obj["parents"]:
+                        new_cache_entries += get_item_paths(
+                            parent, path, paths, new_cache_entries, teamdrive_id
+                        )
 
-                if (not obj or 'parents' not in obj or not obj['parents']) and len(path):
+                if (not obj or "parents" not in obj or not obj["parents"]) and len(
+                    path
+                ):
                     paths.append(path)
                     return new_cache_entries
                 return new_cache_entries
 
-            added_to_cache += get_item_paths(item_id, '', file_paths, added_to_cache, teamdrive_id)
+            added_to_cache += get_item_paths(
+                item_id, "", file_paths, added_to_cache, teamdrive_id
+            )
             if added_to_cache:
                 logger.debug("Dumping cache due to new entries!")
                 self._dump_cache()
@@ -415,7 +480,9 @@ class GoogleDrive:
 
         return False, []
 
-    def add_item_to_cache(self, item_id, item_name, item_parents, md5_checksum, file_paths=None):
+    def add_item_to_cache(
+        self, item_id, item_name, item_parents, md5_checksum, file_paths=None
+    ):
         if file_paths is None:
             file_paths = []
         if self.show_cache_logs and item_id not in self.cache:
@@ -423,13 +490,13 @@ class GoogleDrive:
 
         if not file_paths:
             existing_item = self.cache[item_id] if item_id in self.cache else None
-            if existing_item is not None and 'paths' in existing_item:
-                file_paths = existing_item['paths']
+            if existing_item is not None and "paths" in existing_item:
+                file_paths = existing_item["paths"]
         self.cache[item_id] = {
-            'name': item_name,
-            'parents': item_parents,
-            'md5Checksum': md5_checksum,
-            'paths': file_paths,
+            "name": item_name,
+            "parents": item_parents,
+            "md5Checksum": md5_checksum,
+            "paths": file_paths,
         }
         return
 
@@ -441,10 +508,10 @@ class GoogleDrive:
     def get_item_name_from_cache(self, item_id):
         try:
             item = self.cache.get(item_id)
-            return item['name'] if isinstance(item, dict) else 'Unknown'
+            return item["name"] if isinstance(item, dict) else "Unknown"
         except Exception:
             pass
-        return 'Unknown'
+        return "Unknown"
 
     def get_item_from_cache(self, item_id):
         try:
@@ -466,26 +533,28 @@ class GoogleDrive:
         use_timeout = 30
 
         # override default timeout
-        if 'timeout' in kwargs and isinstance(kwargs['timeout'], int):
-            use_timeout = kwargs['timeout']
-            kwargs.pop('timeout', None)
+        if "timeout" in kwargs and isinstance(kwargs["timeout"], int):
+            use_timeout = kwargs["timeout"]
+            kwargs.pop("timeout", None)
 
         # remove un-needed kwargs
-        kwargs.pop('fetch_all_pages', None)
-        kwargs.pop('page_token_callback', None)
+        kwargs.pop("fetch_all_pages", None)
+        kwargs.pop("page_token_callback", None)
 
         # do query
         while tries < max_tries:
             if self.token_refresh_lock.locked() and not lock_acquirer:
-                logger.debug("Token refresh lock is currently acquired. Trying again in 500ms...")
+                logger.debug(
+                    "Token refresh lock is currently acquired. Trying again in 500ms..."
+                )
                 time.sleep(0.5)
                 continue
 
-            if method == 'POST':
+            if method == "POST":
                 resp = self.http.post(request_url, timeout=use_timeout, **kwargs)
-            elif method == 'PATCH':
+            elif method == "PATCH":
                 resp = self.http.patch(request_url, timeout=use_timeout, **kwargs)
-            elif method == 'DELETE':
+            elif method == "DELETE":
                 resp = self.http.delete(request_url, timeout=use_timeout, **kwargs)
             else:
                 resp = self.http.get(request_url, timeout=use_timeout, **kwargs)
@@ -495,8 +564,10 @@ class GoogleDrive:
                 # unauthorized error, lets refresh token and retry
                 self.token_refresh_lock.acquire(False)
                 lock_acquirer = True
-                logger.warning("Unauthorized Response (Attempts %d/%d)", tries, max_tries)
-                self.token['expires_at'] = time() - 10
+                logger.warning(
+                    "Unauthorized Response (Attempts %d/%d)", tries, max_tries
+                )
+                self.token["expires_at"] = time() - 10
                 self.http = self._new_http_object()
             else:
                 break
@@ -505,16 +576,16 @@ class GoogleDrive:
 
     def _load_token(self):
         try:
-            if 'token' not in self.settings_cache:
+            if "token" not in self.settings_cache:
                 return {}
-            return self.settings_cache['token']
+            return self.settings_cache["token"]
         except Exception:
             logger.exception("Exception loading token from cache: ")
         return {}
 
     def _dump_token(self):
         try:
-            self.settings_cache['token'] = self.token
+            self.settings_cache["token"] = self.token
             return True
         except Exception:
             logger.exception("Exception dumping token to cache: ")
@@ -534,7 +605,7 @@ class GoogleDrive:
 
     def _page_token_saver(self, page_token):
         # update internal token dict
-        self.cache['page_token'] = page_token
+        self.cache["page_token"] = page_token
         self._dump_cache()
         logger.debug("Updated page_token: %s", page_token)
         return
@@ -545,7 +616,10 @@ class GoogleDrive:
             redirect_uri=self.redirect_url,
             scope=self.scopes,
             auto_refresh_url=self.token_url,
-            auto_refresh_kwargs={'client_id': self.client_id, 'client_secret': self.client_secret},
+            auto_refresh_kwargs={
+                "client_id": self.client_id,
+                "client_secret": self.client_secret,
+            },
             token_updater=self._token_saver,
             token=self.token,
         )
@@ -562,52 +636,57 @@ class GoogleDrive:
     def _remove_unwanted_paths(self, paths_list, mime_type):
         removed_file_paths = []
         # remove paths that were not allowed - this is always enabled
-        if 'FILE_PATHS' in self.allowed_config:
+        if "FILE_PATHS" in self.allowed_config:
             for item_path in copy(paths_list):
                 allowed_path = False
-                for allowed_file_path in self.allowed_config['FILE_PATHS']:
+                for allowed_file_path in self.allowed_config["FILE_PATHS"]:
                     if item_path.lower().startswith(allowed_file_path.lower()):
                         allowed_path = True
                         break
                 if not allowed_path:
-                    logger.debug("Ignoring %r because its not an allowed path.", item_path)
+                    logger.debug(
+                        "Ignoring %r because its not an allowed path.", item_path
+                    )
                     removed_file_paths.append(item_path)
                     paths_list.remove(item_path)
                     continue
 
         # remove unallowed extensions
         if (
-            'FILE_EXTENSIONS' in self.allowed_config
-            and 'FILE_EXTENSIONS_LIST' in self.allowed_config
-            and self.allowed_config['FILE_EXTENSIONS']
+            "FILE_EXTENSIONS" in self.allowed_config
+            and "FILE_EXTENSIONS_LIST" in self.allowed_config
+            and self.allowed_config["FILE_EXTENSIONS"]
             and len(paths_list)
         ):
             for item_path in copy(paths_list):
                 allowed_file = False
-                for allowed_extension in self.allowed_config['FILE_EXTENSIONS_LIST']:
+                for allowed_extension in self.allowed_config["FILE_EXTENSIONS_LIST"]:
                     if item_path.lower().endswith(allowed_extension.lower()):
                         allowed_file = True
                         break
                 if not allowed_file:
-                    logger.debug("Ignoring %r because it was not an allowed extension.", item_path)
+                    logger.debug(
+                        "Ignoring %r because it was not an allowed extension.",
+                        item_path,
+                    )
                     removed_file_paths.append(item_path)
                     paths_list.remove(item_path)
 
         # remove unallowed mimes
         if (
-            'MIME_TYPES' in self.allowed_config
-            and 'MIME_TYPES_LIST' in self.allowed_config
-            and self.allowed_config['MIME_TYPES']
+            "MIME_TYPES" in self.allowed_config
+            and "MIME_TYPES_LIST" in self.allowed_config
+            and self.allowed_config["MIME_TYPES"]
             and len(paths_list)
         ):
             allowed_file = False
-            for allowed_mime in self.allowed_config['MIME_TYPES_LIST']:
+            for allowed_mime in self.allowed_config["MIME_TYPES_LIST"]:
                 if allowed_mime.lower() in mime_type.lower():
-                    if 'video' in mime_type.lower():
+                    if "video" in mime_type.lower():
                         # we want to validate this is not a .sub file, which for some reason, google shows as video/MP2G
                         double_checked_allowed = True
                         for item_path in paths_list:
-                            if item_path.lower().endswith('.sub'):
+                            if item_path.lower().endswith(".sub"):
                                 double_checked_allowed = False
                         if double_checked_allowed:
                             allowed_file = True
@@ -617,7 +696,11 @@ class GoogleDrive:
                         break
 
             if not allowed_file:
-                logger.debug("Ignoring %r because it was not an allowed mime: %s", paths_list, mime_type)
+                logger.debug(
+                    "Ignoring %r because it was not an allowed mime: %s",
+                    paths_list,
+                    mime_type,
+                )
                 for item_path in copy(paths_list):
                     removed_file_paths.append(item_path)
                     paths_list.remove(item_path)
@@ -631,45 +714,63 @@ class GoogleDrive:
         moved_file_paths = {}
         removes = 0
 
-        if not data or 'changes' not in data:
+        if not data or "changes" not in data:
             logger.error("There were no changes to process")
             return
-        logger.info("Processing %d changes", len(data['changes']))
+        logger.info("Processing %d changes", len(data["changes"]))
 
         # process changes
-        for change in data['changes']:
-            if 'file' in change and 'fileId' in change:
+        for change in data["changes"]:
+            if "file" in change and "fileId" in change:
                 # dont consider trashed/removed events for processing
-                if ('trashed' in change['file'] and change['file']['trashed']) or (
-                    'removed' in change and change['removed']
+                if ("trashed" in change["file"] and change["file"]["trashed"]) or (
+                    "removed" in change and change["removed"]
                 ):
-                    if self.remove_item_from_cache(change['fileId']) and self.show_cache_logs:
-                        logger.info("Removed '%s' from cache: %s", change['fileId'], change['file']['name'])
+                    if (
+                        self.remove_item_from_cache(change["fileId"])
+                        and self.show_cache_logs
+                    ):
+                        logger.info(
+                            "Removed '%s' from cache: %s",
+                            change["fileId"],
+                            change["file"]["name"],
+                        )
                     removes += 1
                     continue
 
                 # retrieve item from cache
-                existing_cache_item = self.get_item_from_cache(change['fileId'])
+                existing_cache_item = self.get_item_from_cache(change["fileId"])
 
                 # we always want to add changes to the cache so renames etc can be reflected inside the cache
                 self.add_item_to_cache(
-                    change['fileId'],
-                    change['file']['name'],
-                    [] if 'parents' not in change['file'] else change['file']['parents'],
-                    change['file']['md5Checksum'] if 'md5Checksum' in change['file'] else None,
+                    change["fileId"],
+                    change["file"]["name"],
+                    []
+                    if "parents" not in change["file"]
+                    else change["file"]["parents"],
+                    change["file"]["md5Checksum"]
+                    if "md5Checksum" in change["file"]
+                    else None,
                 )
 
                 # get this files paths
                 success, item_paths = self.get_id_file_paths(
-                    change['fileId'], change['file']['teamDriveId'] if 'teamDriveId' in change['file'] else None
+                    change["fileId"],
+                    change["file"]["teamDriveId"]
+                    if "teamDriveId" in change["file"]
+                    else None,
                 )
                 if success:
                     # save item paths
                     self.add_item_to_cache(
-                        change['fileId'],
-                        change['file']['name'],
-                        [] if 'parents' not in change['file'] else change['file']['parents'],
-                        change['file']['md5Checksum'] if 'md5Checksum' in change['file'] else None,
+                        change["fileId"],
+                        change["file"]["name"],
+                        []
+                        if "parents" not in change["file"]
+                        else change["file"]["parents"],
+                        change["file"]["md5Checksum"]
+                        if "md5Checksum" in change["file"]
+                        else None,
                         item_paths,
                     )
 
@@ -680,19 +781,25 @@ class GoogleDrive:
                         item_paths = decoded
 
                 # dont process folder events
-                if 'mimeType' in change['file'] and 'vnd.google-apps.folder' in change['file']['mimeType']:
+                if (
+                    "mimeType" in change["file"]
+                    and "vnd.google-apps.folder" in change["file"]["mimeType"]
+                ):
                     # ignore this change as we dont want to scan folders
                     logger.debug("Ignoring %r because it is a folder", item_paths)
-                    if change['fileId'] in ignored_file_paths:
-                        ignored_file_paths[change['fileId']].extend(item_paths)
+                    if change["fileId"] in ignored_file_paths:
+                        ignored_file_paths[change["fileId"]].extend(item_paths)
                     else:
-                        ignored_file_paths[change['fileId']] = item_paths
+                        ignored_file_paths[change["fileId"]] = item_paths
                     continue
 
                 # remove unwanted paths
                 if success and len(item_paths):
                     unwanted_paths = self._remove_unwanted_paths(
-                        item_paths, change['file']['mimeType'] if 'mimeType' in change['file'] else 'Unknown'
+                        item_paths,
+                        change["file"]["mimeType"]
+                        if "mimeType" in change["file"]
+                        else "Unknown",
                     )
                     if isinstance(unwanted_paths, list) and len(unwanted_paths):
                         unwanted_file_paths.extend(unwanted_paths)
@@ -701,86 +808,130 @@ class GoogleDrive:
                 if existing_cache_item is not None and (success and len(item_paths)):
                     # this was an existing item, and we are re-processing it again
                     # we need to determine if this file has changed (md5Checksum)
-                    if 'md5Checksum' in change['file'] and 'md5Checksum' in existing_cache_item:
+                    if (
+                        "md5Checksum" in change["file"]
+                        and "md5Checksum" in existing_cache_item
+                    ):
                         # compare this changes md5Checksum and the existing cache item
-                        if change['file']['md5Checksum'] != existing_cache_item['md5Checksum']:
+                        if (
+                            change["file"]["md5Checksum"]
+                            != existing_cache_item["md5Checksum"]
+                        ):
                             # the file was modified
-                            if change['fileId'] in added_file_paths:
-                                added_file_paths[change['fileId']].extend(item_paths)
+                            if change["fileId"] in added_file_paths:
+                                added_file_paths[change["fileId"]].extend(item_paths)
                             else:
-                                added_file_paths[change['fileId']] = item_paths
+                                added_file_paths[change["fileId"]] = item_paths
                         else:
-                            if ('name' in change['file'] and 'name' in existing_cache_item) and change['file'][
-                                'name'
-                            ] != existing_cache_item['name']:
-                                logger.debug("md5Checksum matches but file was server-side renamed: %s", item_paths)
-                                if change['fileId'] in added_file_paths:
-                                    added_file_paths[change['fileId']].extend(item_paths)
+                            if (
+                                "name" in change["file"]
+                                and "name" in existing_cache_item
+                            ) and change["file"]["name"] != existing_cache_item["name"]:
+                                logger.debug(
+                                    "md5Checksum matches but file was server-side renamed: %s",
+                                    item_paths,
+                                )
+                                if change["fileId"] in added_file_paths:
+                                    added_file_paths[change["fileId"]].extend(
+                                        item_paths
+                                    )
                                 else:
-                                    added_file_paths[change['fileId']] = item_paths
+                                    added_file_paths[change["fileId"]] = item_paths
 
-                                if change['fileId'] in renamed_file_paths:
-                                    renamed_file_paths[change['fileId']].extend(item_paths)
+                                if change["fileId"] in renamed_file_paths:
+                                    renamed_file_paths[change["fileId"]].extend(
+                                        item_paths
+                                    )
                                 else:
-                                    renamed_file_paths[change['fileId']] = item_paths
-                            elif 'paths' in existing_cache_item and not self._list_matches(
-                                item_paths, existing_cache_item['paths']
+                                    renamed_file_paths[change["fileId"]] = item_paths
+                            elif (
+                                "paths" in existing_cache_item
+                                and not self._list_matches(
+                                    item_paths, existing_cache_item["paths"]
+                                )
                             ):
-                                logger.debug("md5Checksum matches but file was server-side moved: %s", item_paths)
+                                logger.debug(
+                                    "md5Checksum matches but file was server-side moved: %s",
+                                    item_paths,
+                                )
 
-                                if change['fileId'] in added_file_paths:
-                                    added_file_paths[change['fileId']].extend(item_paths)
+                                if change["fileId"] in added_file_paths:
+                                    added_file_paths[change["fileId"]].extend(
+                                        item_paths
+                                    )
                                 else:
-                                    added_file_paths[change['fileId']] = item_paths
+                                    added_file_paths[change["fileId"]] = item_paths
 
-                                if change['fileId'] in moved_file_paths:
-                                    moved_file_paths[change['fileId']].extend(item_paths)
+                                if change["fileId"] in moved_file_paths:
+                                    moved_file_paths[change["fileId"]].extend(
+                                        item_paths
+                                    )
                                 else:
-                                    moved_file_paths[change['fileId']] = item_paths
+                                    moved_file_paths[change["fileId"]] = item_paths
 
                             else:
                                 logger.debug(
                                     "Ignoring %r because the md5Checksum was the same as cache: %s",
                                     item_paths,
-                                    existing_cache_item['md5Checksum'],
+                                    existing_cache_item["md5Checksum"],
                                 )
-                                if change['fileId'] in ignored_file_paths:
-                                    ignored_file_paths[change['fileId']].extend(item_paths)
+                                if change["fileId"] in ignored_file_paths:
+                                    ignored_file_paths[change["fileId"]].extend(
+                                        item_paths
+                                    )
                                 else:
-                                    ignored_file_paths[change['fileId']] = item_paths
+                                    ignored_file_paths[change["fileId"]] = item_paths
                     else:
-                        logger.error("No md5Checksum for cache item:\n%s", existing_cache_item)
+                        logger.error(
+                            "No md5Checksum for cache item:\n%s", existing_cache_item
+                        )
 
                 elif success and len(item_paths):
                     # these are new paths/files that were not already in the cache
-                    if change['fileId'] in added_file_paths:
-                        added_file_paths[change['fileId']].extend(item_paths)
+                    if change["fileId"] in added_file_paths:
+                        added_file_paths[change["fileId"]].extend(item_paths)
                     else:
-                        added_file_paths[change['fileId']] = item_paths
+                        added_file_paths[change["fileId"]] = item_paths
 
-            elif 'teamDriveId' in change:
+            elif "teamDriveId" in change:
                 # this is a teamdrive change
                 # dont consider trashed/removed events for processing
-                if 'removed' in change and change['removed']:
+                if "removed" in change and change["removed"]:
                     # remove item from cache
-                    if self.remove_item_from_cache(change['teamDriveId']):
-                        if self.show_cache_logs and 'teamDrive' in change and 'name' in change['teamDrive']:
-                            teamdrive_name = 'Unknown teamDrive'
-                            teamdrive_name = change['teamDrive']['name']
-                            logger.info("Removed teamDrive '%s' from cache: %s", change['teamDriveId'], teamdrive_name)
+                    if self.remove_item_from_cache(change["teamDriveId"]):
+                        if (
+                            self.show_cache_logs
+                            and "teamDrive" in change
+                            and "name" in change["teamDrive"]
+                        ):
+                            teamdrive_name = "Unknown teamDrive"
+                            teamdrive_name = change["teamDrive"]["name"]
+                            logger.info(
+                                "Removed teamDrive '%s' from cache: %s",
+                                change["teamDriveId"],
+                                teamdrive_name,
+                            )
 
-                        self._do_callback('teamdrive_removed', change)
+                        self._do_callback("teamdrive_removed", change)
 
                     removes += 1
                     continue
 
-                if 'teamDrive' in change and 'id' in change['teamDrive'] and 'name' in change['teamDrive']:
+                if (
+                    "teamDrive" in change
+                    and "id" in change["teamDrive"]
+                    and "name" in change["teamDrive"]
+                ):
                     # we always want to add changes to the cache so renames etc can be reflected inside the cache
-                    if change['teamDrive']['id'] not in self.cache:
-                        self.cache_manager.get_cache("teamdrive_%s" % change['teamDrive']['id'])
-                        self._do_callback('teamdrive_added', change)
+                    if change["teamDrive"]["id"] not in self.cache:
+                        self.cache_manager.get_cache(
+                            "teamdrive_%s" % change["teamDrive"]["id"]
+                        )
+                        self._do_callback("teamdrive_added", change)
 
-                    self.add_item_to_cache(change['teamDrive']['id'], change['teamDrive']['name'], [], None)
+                    self.add_item_to_cache(
+                        change["teamDrive"]["id"], change["teamDrive"]["name"], [], None
+                    )
                     continue
 
         # always dump the cache after running changes
@@ -794,7 +945,7 @@ class GoogleDrive:
         logger.debug("Moved: %s", moved_file_paths)
 
         logger.info(
-            '%d added / %d removed / %d unwanted / %d ignored / %d renamed / %d moved',
+            "%d added / %d removed / %d unwanted / %d ignored / %d renamed / %d moved",
             len(added_file_paths),
             removes,
             len(unwanted_file_paths),
@@ -804,9 +955,9 @@ class GoogleDrive:
         )
 
         # call further callbacks
-        self._do_callback('items_added', added_file_paths)
-        self._do_callback('items_unwanted', unwanted_file_paths)
-        self._do_callback('items_ignored', ignored_file_paths)
+        self._do_callback("items_added", added_file_paths)
+        self._do_callback("items_unwanted", unwanted_file_paths)
+        self._do_callback("items_ignored", ignored_file_paths)
 
         return
 
@@ -823,5 +974,5 @@ class GoogleDrive:
                     return False
             return True
         except Exception:
-            logger.exception('Exception checking if lists match: ')
+            logger.exception("Exception checking if lists match: ")
         return False
