@@ -997,18 +997,12 @@ Setup instructions to connect Sonarr/Radarr/Lidarr to Autoscan.
 2. Add a new "Webhook" Notification.
 3. Add the following:
     - Name: Autoscan
-    - On Grab: `No`
-    - On Album Import: `No`
-    - On Track Import: `Yes`
-    - On Track Upgrade:  `Yes`
-    - On Rename: `Yes`
-    - Tags: _Leave Blank_
+    - On Release Import: `Yes`
+    - On Upgrade: `Yes`
     - URL: _Your Autoscan Webhook URL_
     - Method:`POST`
-    - Username: _Leave Blank_
-    - Password: _Leave Blank_
 4. The settings will look like this:
-   ![Lidarr Autoscan](https://i.imgur.com/43uZloh.png)
+   ![Lidarr Autoscan](https://user-images.githubusercontent.com/29580743/279818860-a443f981-c076-4e41-90a5-42d2854f232f.png)
 5. Click Save to add Autoscan.
 
 ***
