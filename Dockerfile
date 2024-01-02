@@ -2,7 +2,7 @@ FROM alpine:latest
 
 ARG ARCH
 ARG OVERLAY_ARCH
-ARG RCLONE_VERSION=1.62.2
+ARG RCLONE_VERSION=1.65.0
 ARG OVERLAY_VERSION=v2.2.0.3
 
 WORKDIR /opt/autoscan
@@ -37,10 +37,10 @@ RUN wget -q $S6_URL -O /tmp/s6-overlay-${OVERLAY_ARCH}-installer && \
 
 COPY . .
 
-RUN apk add --no-cache --update python3 git py3-pip py3-setuptools shadow bash docker-cli && \
+RUN apk add --no-cache --upgrade python3 git py3-pip py3-setuptools shadow bash docker-cli && \
     apk --no-cache --virtual=build-deps add gcc linux-headers musl-dev python3-dev && \
-    pip3 install --upgrade pip idna wheel && \
-    pip3 install --upgrade --no-cache-dir --no-cache -r requirements.txt && \
+    pip install -U --no-cache-dir pip idna wheel --break-system-packages && \
+    pip install -U --no-cache-dir pip -r requirements.txt --break-system-packages && \
     apk --purge del build-deps && \
     ln -s /opt/plex_autoscan/config /config
 
