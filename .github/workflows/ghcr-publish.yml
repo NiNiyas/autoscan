@@ -13,32 +13,32 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Get Short SHA
-        uses: benjlevesque/short-sha@v2.1
+        uses: benjlevesque/short-sha@v2.2
         id: short-sha
         with:
           length: 7
 
       - name: Checkout
-        uses: actions/checkout@v3.4.0
+        uses: actions/checkout@v4.1.1
 
       - name: Log into GHCR
         run: echo "${{ secrets.GIT_TOKEN }}" | docker login https://ghcr.io -u ${{ github.actor }} --password-stdin
 
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@v2.1.0
+        uses: docker/setup-qemu-action@v3.0.0
         with:
           image: tonistiigi/binfmt:latest
           platforms: all
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2.5.0
+        uses: docker/setup-buildx-action@v3.0.0
         with:
           install: true
           version: latest
           driver-opts: image=moby/buildkit:master
 
       - name: Build and push amd64
-        uses: docker/build-push-action@v4
+        uses: docker/build-push-action@v5.1.0
         with:
           context: ./
           file: ./Dockerfile
@@ -53,7 +53,7 @@ jobs:
             ARCH=amd64
 
       - name: Build and push aarch64
-        uses: docker/build-push-action@v4
+        uses: docker/build-push-action@v5.1.0
         with:
           context: ./
           file: ./Dockerfile
@@ -82,6 +82,8 @@ jobs:
           topic: ${{ secrets.NTFY_TOPIC }}
           tags: github,action,+1,partying_face
           priority: 4
+          image: true
+          actions: 'default'
           details: 'Workflow has been completed successfully!'
           headers: '${{ secrets.NTFY_HEADERS }}'
 
@@ -93,6 +95,8 @@ jobs:
           topic: ${{ secrets.NTFY_TOPIC }}
           tags: github,action,failed,rotating_light
           priority: 5
+          image: true
+          actions: 'default'
           details: 'Workflow has failed!'
           headers: '${{ secrets.NTFY_HEADERS }}'
 
@@ -105,3 +109,5 @@ jobs:
           tags: github,action,cancelled,skull
           details: 'Workflow has been cancelled!'
           headers: '${{ secrets.NTFY_HEADERS }}'
+          image: true
+          actions: 'default'
