@@ -8,6 +8,7 @@
     "ENABLED": false,
     "CLIENT_ID": "",
     "CLIENT_SECRET": "",
+    "REDIRECT_URI": "",
     "ALLOWED": {
       "FILE_PATHS": [],
       "FILE_EXTENSIONS": true,
