@@ -1,7 +1,9 @@
 {
+  "CHECK_FILESYSTEM": false,
   "DOCKER_NAME": "",
   "ENABLE_JOE": false,
   "ENABLE_PLEX": false,
+  "FILESYSTEM_PATHS": [],
   "GOOGLE": {
     "ENABLED": false,
     "CLIENT_ID": "",
@@ -31,33 +33,32 @@
   "PLEX_ANALYZE_TYPE": "basic",
   "PLEX_FIX_MISMATCHED": false,
   "PLEX_FIX_MISMATCHED_LANG": "en",
-  "PLEX_DATABASE_PATH": "%LOCALAPPDATA%\\Plex Media Server\\Plug-in Support\\Databases\\com.plexapp.plugins.library.db",
+  "PLEX_DATABASE_PATH": "/var/lib/plexmediaserver/Library/Application Support/Plex Media Server/Plug-in Support/Databases/com.plexapp.plugins.library.db",
   "PLEX_EMPTY_TRASH": false,
   "PLEX_EMPTY_TRASH_CONTROL_FILES": [
-    "G:\\mounted.bin"
+    "/mnt/unionfs/mounted.bin"
   ],
   "PLEX_EMPTY_TRASH_MAX_FILES": 100,
   "PLEX_EMPTY_TRASH_ZERO_DELETED": false,
-  "PLEX_LD_LIBRARY_PATH": "%LOCALAPPDATA%\\Plex Media Server",
+  "PLEX_LD_LIBRARY_PATH": "/usr/lib/plexmediaserver/lib",
   "PLEX_LOCAL_URL": "http://localhost:32400",
-  "PLEX_SCANNER": "%PROGRAMFILES(X86)%\\Plex\\Plex Media Server\\Plex Media Scanner.exe",
-  "PLEX_SUPPORT_DIR": "%LOCALAPPDATA%\\Plex Media Server",
+  "PLEX_SCANNER": "/usr/lib/plexmediaserver/Plex\\ Media\\ Scanner",
+  "PLEX_SUPPORT_DIR": "/var/lib/plexmediaserver/Library/Application\\ Support",
   "PLEX_USER": "plex",
   "PLEX_TOKEN": "",
-  "PLEX_CHECK_BEFORE_SCAN": true
+  "PLEX_CHECK_BEFORE_SCAN": true,
   "PLEX_WAIT_FOR_EXTERNAL_SCANNERS": true,
   "RCLONE": {
-    "BINARY": "%ChocolateyInstall%\\bin\\rclone.exe",
-    "CONFIG": "%HOMEDRIVE%%HOMEPATH%\\.config\\rclone\\rclone.conf",
+    "BINARY": "/usr/bin/rclone",
+    "CONFIG": "~/.config/rclone/rclone.conf",
     "CRYPT_MAPPINGS": {
     },
     "RC_CACHE_REFRESH": {
       "ENABLED": false,
       "FILE_EXISTS_TO_REMOTE_MAPPINGS": {
-        "S:\\": [
-          "/data/media",
-          "DRIVENAME\\media"
-        ]
+      "Media/": [
+          "/mnt/rclone/Media/"
+      ]
       },
       "RC_URL": "http://localhost:5572"
     }
@@ -65,7 +66,7 @@
   "RUN_COMMAND_BEFORE_SCAN": "",
   "SERVER_ALLOW_MANUAL_SCAN": false,
   "SERVER_FILE_EXIST_PATH_MAPPINGS": {
-      "G:\\media\\": [
+      "/mnt/unionfs/media/": [
           "/data/"
       ]
   },
@@ -78,10 +79,9 @@
   "SERVER_MAX_FILE_CHECKS": 10,
   "SERVER_PASS": "9c4b81fe234e4d6eb9011cefe514d915",
   "SERVER_PATH_MAPPINGS": {
-    "G:\\media\\movies\\": [
-      "/data/media/movies/",
-      "TEAMDRIVENAME/media/movies/"
-    ]
+      "/mnt/unionfs/": [
+          "~/media/fused/"
+      ]
   },
   "SERVER_PORT": 3468,
   "SERVER_SCAN_DELAY": 180,
@@ -100,4 +100,5 @@
   "JELLYFIN_EMBY": "jellyfin",
   "JOE_API_KEY": "",
   "JOE_HOST": "http://localhost:8096"
+
 }

@@ -28,13 +28,11 @@ class QueueItemModel(BaseQueueModel):
 def create_database(db, db_path):
     if not os.path.exists(db_path):
         db.create_tables([QueueItemModel])
-        logger.info("Created Plex Autoscan database tables.")
+        logger.info("Created Autoscan database tables.")
 
 
 def connect(db):
-    if not db.is_closed():
-        return False
-    return db.connect()
+    return db.connect() if db.is_closed() else False
 
 
 def init(db, db_path):
@@ -79,7 +77,7 @@ def get_all_items():
                 }
             )
     except Exception:
-        logger.exception("Exception getting all items from Plex Autoscan database: ")
+        logger.exception("Exception getting all items from Autoscan database: ")
         return None
     return items
 
@@ -90,7 +88,7 @@ def get_queue_count():
         count = QueueItemModel.select().count()
     except Exception:
         logger.exception(
-            "Exception getting queued item count from Plex Autoscan database: "
+            "Exception getting queued item count from Autoscan database: "
         )
     return count
 
@@ -104,7 +102,7 @@ def remove_item(scan_path):
         )
     except Exception:
         logger.exception(
-            "Exception deleting %r from Plex Autoscan database: ", scan_path
+            f"Exception deleting {scan_path} from Autoscan database: "
         )
         return False
 
@@ -122,7 +120,7 @@ def add_item(scan_path, scan_for, scan_section, scan_type):
         return item
     except Exception:
         pass
-        # logger.exception("Exception adding %r to database: ", scan_path)
+        # logger.exception(f"Exception adding {scan_path} to database: ")
     return item
 
 

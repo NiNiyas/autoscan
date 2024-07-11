@@ -7,7 +7,6 @@
 Fork of [plex_autoscan](https://github.com/l3uddz/plex_autoscan) by [l3uddz](https://github.com/l3uddz).
 
 - [Introduction](#introduction)
-- [Requirements](#requirements)
 - [Installation](#installation)
 - [Configuration](#configuration)
     - [Example](#example)
@@ -18,7 +17,8 @@ Fork of [plex_autoscan](https://github.com/l3uddz/plex_autoscan) by [l3uddz](htt
     - [Autoscan Server](#autoscan-server)
     - [Google Drive Monitoring](#google-drive-monitoring)
     - [rclone remote control](#rclone-remote-control)
-- [Setup](#setup)
+    - [File System Monitoring](#filesystem-monitoring)
+- [Setup](#arrs-setup)
     - [Sonarr and Radarr](#sonarr-and-radarr)
     - [Lidarr](#lidarr)
 
@@ -37,30 +37,7 @@ In addition to the above, Autoscan can also monitor Google Drive for updates. Wh
 checked against the Plex database and if this file is missing, a new scan request is sent to Plex and/or Jellyfin/Emby (
 see section [below](#google-drive-monitoring)).
 
-Autoscan is installed on the same server as the Plex and/or Jellyfin/Emby.
-
-# Requirements
-
-1. Any OS that supports Python 3 or higher.
-
 # Installation
-
-## Ubuntu/Debian
-
-1. `cd /opt`
-2. `sudo git clone https://github.com/niniyas/autoscan`
-3. `sudo chown -R user:group autoscan` - Run `id` to find your user / group.
-4. `cd autoscan`
-5. `sudo python -m pip install -r requirements.txt`
-6. `python scan.py sections` for Plex or `python scan.py jesections` for Jellyfin/Emby.- Run once to generate a
-   default `config.json` file.
-7. Edit `/opt/autoscan/config/config.json` - Configure settings (do this before moving on).
-8. Edit `/opt/autoscan/system/autoscan.service` - Change two instances of `YOUR_USER` to your user and group (
-   do this before moving on).
-9. `sudo cp /opt/autoscan/system/autoscan.service /etc/systemd/system/`
-10. `sudo systemctl daemon-reload`
-11. `sudo systemctl enable autoscan.service`
-12. `sudo systemctl start autoscan.service`
 
 ## Docker
 
@@ -113,19 +90,40 @@ docker run -d \
 
 In most cases you'll need to add additional volumes, to access your files.
 
-## Windows
+## Native
 
-_Note: It's recommended that you install rclone and Python using chocolatey._
+- Any OS that supports Python 3.12 or higher.
+- Clone the repo: `git clone https://github.com/niniyas/autoscan autoscan`
+- **Optional**:
+    - Create a new virtual environment inside `autoscan` folder: `cd autoscan && python -m venv venv`
+    - Activate venv:
+        - Linux: `source venv/bin/activate`
+        - Windows: `venv\Scripts\activate.bat`
+- Install required packages: `pip install -r requirements.txt`
+- Edit `src/config/config.json` - Configure settings (do this before moving on).
+- Run autoscan: `python src/scan.py server`
+
+#### Linux
+
+You can find the systemd service file in [system](system).
+
+### Available environment variables
+
+- `AUTOSCAN_CONFIG` - `config.json` location.
+- `AUTOSCAN_LOGFILE` - Logfile location.
+- `AUTOSCAN_LOGLEVEL` - Log level.
+- `AUTOSCAN_QUEUEFILE` - `queue.db` location.
+- `AUTOSCAN_CACHEFILE` - `cache.db` location.
+- `AUTOSCAN_COMMAND`(Docker specific) - Command to run on start.
 
 # Configuration
 
-_Note: Changes to config file require a restart of the Autoscan service (
-e.g. `sudo systemctl restart autoscan.service` in Ubuntu)._
+**Changes to config file require a restart of the Autoscan.**
 
 ## Example
 
 You can find example config files for both Windows and Ubuntu/Debian
-in [config](config) folder.
+in [config](src/config) folder.
 
 ## Basics
 
@@ -605,11 +603,19 @@ Once a change is detected, the file will be checked against the Plex database to
 this match comes back negative, a scan request for the parent folder is added into the process queue, and if that parent
 folder is already in the process queue, the duplicate request will be ignored.
 
+**Notes**
+
+- **If you have been using the old authentication method, you will need to delete `cache.db` database
+  and `cache.db-journal` if it is present.**
+- **If you are using Docker, you need to set the `AUTOSCAN_COMMAND` variable to `authorize` to start the authorization flow and
+  restart without `AUTOSCAN_COMMAND` variable.**
+
 ```json
   "GOOGLE": {
     "ENABLED": false,
     "CLIENT_ID": "",
     "CLIENT_SECRET": "",
+    "REDIRECT_URI": "",
     "ALLOWED": {
       "FILE_PATHS": [ ],
       "FILE_EXTENSIONS": true,
@@ -648,6 +654,10 @@ folder is already in the process queue, the duplicate request will be ignored.
 `CLIENT_ID` - Google Drive API Client ID.
 
 `CLIENT_SECRET` - Google Drive API Client Secret.
+
+`REDIRECT_URI` - Google Drive redirect uri. Should be
+in `http(s)://<SERVER_IP>:<SERVER_PORT>/<SERVER_PASS>/google/callback` in both Google app's setting and in Autoscan
+config.
 
 `ALLOWED` - Specify what paths, extensions, and mime types to whitelist.
 
@@ -751,144 +761,145 @@ rclone mount name. These values enable rclone crypt decoder.
 
 To set this up:
 
-1. Edit `config.json `file, to enable the Google Drive monitoring and fill in your Google Drive API Client ID and
-   Secret.
+- Edit `config.json `file, to enable the Google Drive monitoring and fill in your Google Drive API Client ID,
+  Secret and Redirect URI. You should select `Web App` when creating the credentials.
 
     ```json
     "ENABLED": true,
     "CLIENT_ID": "yourclientid",
     "CLIENT_SECRET": "yourclientsecret",
+    "REDIRECT_URI": "redirecturi"
     ```
 
-2. Next, you will need to authorize Google Drive.
+- Next, you will need to authorize Google Drive.
 
-   ```shell
-   python scan.py authorize
-   ```
+    - Native Install
+       ```shell
+         python scan.py authorize
+       ```
 
-3. Visit the link shown to get the authorization code and paste that in and hit `enter`.
+    - Docker install
+        - You need to set the `AUTOSCAN_COMMAND` environment variable to `authorize` and start the container.
 
+
+- Visit the link shown and login.
+
+    ``` 
+    2018-06-24 05:57:58,511 -     INFO -  AUTOSCAN [140007964366656]: https://accounts.google.com/o/oauth2/v2/...
     ```
-    Visit https://accounts.google.com/o/oauth2/v2/auth?scope=https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fdrive&redirect_uri=urn%3Aietf%3Awg%3Aoauth%3A2.0%3Aoob&response_type=code&client_id=&access_type=offline and authorize against the account you wish to use
-    Enter authorization code:
-    ```
-4. When access token retrieval is successful, you'll see this:
 
-   ```
-   2018-06-24 05:57:58,252 -     INFO -    GDRIVE [140007964366656]: Requesting access token for auth code '4/AAAfPHmX9H_kMkMasfdsdfE4r8ImXI_BddbLF-eoCOPsdfasdfHBBzffKto'
-   2018-06-24 05:57:58,509 -     INFO -    GDRIVE [140007964366656]: Retrieved first access token!
-   2018-06-24 05:57:58,511 -     INFO -  AUTOSCAN [140007964366656]: Access tokens were successfully retrieved!
-   ```
+- After successful authentication, you will be redirected.
 
-   _Note: Message stating `Segmentation fault` at the end can be ignored._
 
-5. You will now need to add in your Google Drive paths into `SERVER_PATH_MAPPINGS`. This will tell Autoscan to map
-   Google Drive paths to their local counterpart.
+- You will now need to add in your Google Drive paths into `SERVER_PATH_MAPPINGS`. This will tell Autoscan to map
+  Google Drive paths to their local counterpart.
 
-   i. Native install
-
-    - Format:
-
-      ```json
-      "SERVER_PATH_MAPPINGS": {
-          "/path/on/local/host": [
-              "/path/on/sonarr/host/",
-              "path/on/google/drive/"
-          ]
-      },
-      ```
-
-      _Note 1: The Google Drive path does not start with a forward slash (` / `). Paths in My Drive will start with
-      just `My Drive/`. and paths in a Google Teamdrive will start with `teamdrive_name/`._
-
-      _Note 2: Foreign users of Google Drive might not see `My Drive` listed on their Google Drive. They can try using
-      the `My Drive/...` path or see what the log shows and match it up to that. One example is `Mon\u00A0Drive/` for
-      French users._
-
-    - For example, if you store your files under My Drive's Media folder (`My Drive/Media/...`), the server path
-      mappings will look like this:
-
-      ```json
-      "SERVER_PATH_MAPPINGS": {
-        "/mnt/unionfs/Media/Movies/": [
-          "/home/seed/media/fused/"
-          "My Drive/Media/Movies/"
-        ],
-      },
-      ```
-
-    - For example, if you store your files under a Google Teamdrive called "shared_movies" and within a Media
-      folder (`shared_movies/Media/...`), the server path mappings will look like this:
-
-      ```json
-      "SERVER_PATH_MAPPINGS": {
-        "/mnt/unionfs/Media/Movies/": [
-          "/home/seed/media/fused/"
-          "shared_movies/Media/Movies/"
-        ],
-      },
-      ```
-
-   ii. Docker install
-
-    - Format:
-
-      ```json
-      "SERVER_PATH_MAPPINGS": {
-          "/path/in/plex/container/": [
-             "/path/from/sonarr/container/",
-             "path/on/google/drive/"
-          ]
-      },
-      ```
-
-      _Note 1: The Google Drive path does not start with a forward slash (` / `). Paths in My Drive will start with
-      just `My Drive/`. and paths in a Google Teamdrive will start with_ `teamdrive_name/`.
-
-      _Note 2: Foreign users of Google Drive might not see `My Drive` listed on their Google Drive. They can try using
-      the `My Drive/...` path or see what the log shows and match it up to that. One example is `Mon\u00A0Drive/` for
-      French users._
-
-    - For example, if you store your files under Google Drive's My Drive Media folder (`My Drive/Media/...`) AND run
-      Plex in a docker container, the server path mappings will look like this:
-
-      ```json
-      "SERVER_PATH_MAPPINGS": {
-        "/data/Movies/": [
-          "/movies/",
-          "My Drive/Media/Movies/"
-        ]
-      }
-      ```
-
-    - For example, if you store your files under Google Drive's Teamdrive called "shared_movies" and within a Media
-      folder (`shared_movies/Media/...`) AND run Plex in a docker container, the server path mappings will look like
-      this:
-
+    - Native Install
         - Format:
 
           ```json
           "SERVER_PATH_MAPPINGS": {
-            "/data/Movies/": [
-              "/movies/",
-              "NAME_OF_TEAMDRIVE/Media/Movies/"
-            ]
-          }
+              "/path/on/local/host": [
+                  "/path/on/sonarr/host/",
+                  "path/on/google/drive/"
+              ]
+          },
           ```
 
-        - Example:
+          _Note 1: The Google Drive path does not start with a forward slash (` / `). Paths in My Drive will start with
+          just `My Drive/`. and paths in a Google Teamdrive will start with `teamdrive_name/`._
+
+          _Note 2: Foreign users of Google Drive might not see `My Drive` listed on their Google Drive. They can try
+          using
+          the `My Drive/...` path or see what the log shows and match it up to that. One example is `Mon\u00A0Drive/`
+          for
+          French users._
+
+        - For example, if you store your files under My Drive's Media folder (`My Drive/Media/...`), the server path
+          mappings will look like this:
+
+          ```json
+          "SERVER_PATH_MAPPINGS": {
+            "/mnt/unionfs/Media/Movies/": [
+              "/home/seed/media/fused/"
+              "My Drive/Media/Movies/"
+            ],
+          },
+          ```
+
+        - For example, if you store your files under a Google Teamdrive called "shared_movies" and within a Media
+          folder (`shared_movies/Media/...`), the server path mappings will look like this:
+
+          ```json
+          "SERVER_PATH_MAPPINGS": {
+            "/mnt/unionfs/Media/Movies/": [
+              "/home/seed/media/fused/"
+              "shared_movies/Media/Movies/"
+            ],
+          },
+          ```
+
+    - Docker install
+        - Format:
+
+          ```json
+          "SERVER_PATH_MAPPINGS": {
+              "/path/in/plex/container/": [
+                 "/path/from/sonarr/container/",
+                 "path/on/google/drive/"
+              ]
+          },
+          ```
+
+          _Note 1: The Google Drive path does not start with a forward slash (` / `). Paths in My Drive will start with
+          just `My Drive/`. and paths in a Google Teamdrive will start with_ `teamdrive_name/`.
+
+          _Note 2: Foreign users of Google Drive might not see `My Drive` listed on their Google Drive. They can try
+          using
+          the `My Drive/...` path or see what the log shows and match it up to that. One example is `Mon\u00A0Drive/`
+          for
+          French users._
+
+        - For example, if you store your files under Google Drive's My Drive Media folder (`My Drive/Media/...`) AND run
+          Plex in a docker container, the server path mappings will look like this:
 
           ```json
           "SERVER_PATH_MAPPINGS": {
             "/data/Movies/": [
               "/movies/",
-              "shared_movies/Media/Movies/"
+              "My Drive/Media/Movies/"
             ]
           }
           ```
 
-6. rclone crypt Support - If your mounted Google Drive is encrypted using rclone crypt, Autoscan can also decode
-   the filenames for processing changes. This includes drives/team drives entirely encrypted or just a subfolder.
+        - For example, if you store your files under Google Drive's Teamdrive called "shared_movies" and within a Media
+          folder (`shared_movies/Media/...`) AND run Plex in a docker container, the server path mappings will look like
+          this:
+
+            - Format:
+
+              ```json
+              "SERVER_PATH_MAPPINGS": {
+                "/data/Movies/": [
+                  "/movies/",
+                  "NAME_OF_TEAMDRIVE/Media/Movies/"
+                ]
+              }
+              ```
+
+            - Example:
+
+              ```json
+              "SERVER_PATH_MAPPINGS": {
+                "/data/Movies/": [
+                  "/movies/",
+                  "shared_movies/Media/Movies/"
+                ]
+              }
+              ```
+
+- rclone crypt Support - If your mounted Google Drive is encrypted using rclone crypt, Autoscan can also decode
+  the filenames for processing changes. This includes drives/team drives entirely encrypted or just a subfolder.
 
     1. Configure rclone values. Example below:
 
@@ -921,7 +932,7 @@ To set this up:
           },
           ```
 
-7. Google Drive Monitoring is now setup.
+- Google Drive Monitoring is now ready.
 
 ---
 
@@ -968,42 +979,81 @@ file check exists comes back positive or checks count reaches `SERVER_MAX_FILE_C
 
 `RC_URL` - URL and Port rclone RC is set to.
 
-# Setup
+---
+
+## Filesystem monitoring
+
+Autoscan can also watch changes to any folders and send scan request to your media server.
+
+This works almost like the [Google Drive Monitoring](#google-drive-monitoring).
+
+**This hasn't been tested on Windows, but should work fine. Only Linux and Windows are supported.**
+
+This will write to the `queue.db` database whether or not you have enabled `SERVER_USE_SQLITE` because the library
+used `watchdog` can sometimes produce duplicates.
+
+```json
+    "CHECK_FILESYSTEM": false,
+    "FILESYSTEM_PATHS": [
+        "/data/Movies/",
+        "/data/TV Series/"
+    ],
+```
+
+`CHECK_FILESYSTEM` - Check filesystem for changes.
+
+`FILESYSTEM_PATHS` - The paths to monitor changes.
+
+```json
+"FILESYSTEM_PATHS": [
+    "/data/Movies/",
+    "/data/TV Series/"
+  ],
+  "SERVER_PATH_MAPPINGS": {
+    "/media/Movies/": [     <--- Plex Library path
+      "/data/Movies/"       <--- Local path
+    ],
+    "/media/TV Series/": [
+      "/data/TV Series/"
+    ]
+  },
+```
+
+---
+
+# arrs setup
 
 Setup instructions to connect Sonarr/Radarr/Lidarr to Autoscan.
 
 ## Sonarr and Radarr
 
-1. Sonarr/Radarr -> Settings -> Connect.
-2. Add a new Webhook.
-3. Add the following:
+![Sonarr Autoscan](assets/arr.png)
+
+- Sonarr/Radarr -> Settings -> Connect.
+- Add a new Webhook.
+- Add the following:
     - Name: Autoscan
-    - On Grab: `No`
     - On Download: `Yes`
     - On Upgrade:  `Yes`
     - On Rename: `Yes`
-    - Filter Series Tags: _Leave Blank_
     - URL: _Your Autoscan Webhook URL_
     - Method:`POST`
-    - Username: _Leave Blank_
-    - Password: _Leave Blank_
-4. The settings will look like this:
-   ![Sonarr Autoscan](assets/arr.png)
-5. Click Save to add Autoscan.
+- The settings will look like this:
+- Click Save to add Autoscan.
 
 ## Lidarr
 
-1. Lidarr -> "Settings" -> "Connect".
-2. Add a new "Webhook" Notification.
-3. Add the following:
+![Lidarr Autoscan](https://user-images.githubusercontent.com/29580743/279818860-a443f981-c076-4e41-90a5-42d2854f232f.png)
+
+- Lidarr -> Settings -> Connect.
+- Add a new Webhook.
+- Add the following:
     - Name: Autoscan
     - On Release Import: `Yes`
     - On Upgrade: `Yes`
     - URL: _Your Autoscan Webhook URL_
     - Method:`POST`
-4. The settings will look like this:
-   ![Lidarr Autoscan](https://user-images.githubusercontent.com/29580743/279818860-a443f981-c076-4e41-90a5-42d2854f232f.png)
-5. Click Save to add Autoscan.
+- Click Save to add Autoscan.
 
 ***
 

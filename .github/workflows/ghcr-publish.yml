@@ -1,9 +1,7 @@
 name: Build and Push to GHCR
 
 on:
-  workflow_dispatch:
-  repository_dispatch:
-    types: [Build and Push to GHCR]
+  workflow_dispatch: ~
   push:
     branches:
       - master
@@ -13,32 +11,32 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Get Short SHA
-        uses: benjlevesque/short-sha@v2.2
+        uses: benjlevesque/short-sha@v3.0
         id: short-sha
         with:
           length: 7
 
       - name: Checkout
-        uses: actions/checkout@v4.1.1
+        uses: actions/checkout@v4.1.7
 
       - name: Log into GHCR
         run: echo "${{ secrets.GIT_TOKEN }}" | docker login https://ghcr.io -u ${{ github.actor }} --password-stdin
 
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3.0.0
+        uses: docker/setup-qemu-action@v3.1.0
         with:
           image: tonistiigi/binfmt:latest
           platforms: all
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3.0.0
+        uses: docker/setup-buildx-action@v3.4.0
         with:
           install: true
           version: latest
           driver-opts: image=moby/buildkit:master
 
       - name: Build and push amd64
-        uses: docker/build-push-action@v5.1.0
+        uses: docker/build-push-action@v6.3.0
         with:
           context: ./
           file: ./Dockerfile
@@ -49,11 +47,10 @@ jobs:
             ghcr.io/${{ secrets.GIT_USER }}/autoscan:amd64_commit-${{ steps.short-sha.outputs.sha }}
           platforms: linux/amd64
           build-args: |
-            OVERLAY_ARCH=amd64
-            ARCH=amd64
+            OVERLAY_ARCH=x86_64
 
       - name: Build and push aarch64
-        uses: docker/build-push-action@v5.1.0
+        uses: docker/build-push-action@v6.3.0
         with:
           context: ./
           file: ./Dockerfile
@@ -65,7 +62,6 @@ jobs:
           platforms: linux/arm64
           build-args: |
             OVERLAY_ARCH=aarch64
-            ARCH=arm64
 
       - name: Create and push manifest images
         uses: Noelware/docker-manifest-action@master

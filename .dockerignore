@@ -17,11 +17,11 @@ __pycache__/
 *.log*
 
 # databases
-/*.db
+*.db
 
 # configs
 *.cfg
-/config/config.json
+src/config/config.json
 
 # generators
 *.bat
