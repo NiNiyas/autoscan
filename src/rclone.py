@@ -10,9 +10,11 @@ class RcloneDecoder:
         self._binary = binary
         if self._binary == "" or not os.path.isfile(binary):
             self._binary = os.path.normpath(
-                subprocess.check_output(["which", "rclone"]).decode().rstrip("\n")
+                subprocess.check_output(["which", "rclone"])
+                .decode()
+                .rstrip("\n")
             )
-            logger.debug("Rclone binary path located as: '%s'", binary)
+            logger.debug(f"Rclone binary path located as: '{binary}'")
 
         self._config = config
         self._crypt_mappings = crypt_mappings
@@ -21,28 +23,18 @@ class RcloneDecoder:
         for crypt_dir, mapped_remotes in self._crypt_mappings.items():
             # Isolate root/file path and attempt to locate entry in mappings
             file_path = path.replace(crypt_dir, "")
-            logger.debug("Encoded file path identified as: '%s'", file_path)
+            logger.debug(f"Encoded file path identified as: '{file_path}'")
             if path.lower().startswith(crypt_dir.lower()):
                 for mapped_remote in mapped_remotes:
-                    logger.debug("Crypt base directory identified as: '%s'", crypt_dir)
                     logger.debug(
-                        "Crypt base directory '%s' has mapping defined in config as remote '%s'.",
-                        crypt_dir,
-                        mapped_remote,
+                        f"Crypt base directory identified as: '{crypt_dir}'"
+                    )
+                    logger.debug(
+                        f"Crypt base directory '{crypt_dir}' has mapping defined in config as remote '{mapped_remote}'."
                     )
                     logger.info("Attempting to decode...")
                     logger.debug(
-                        "Raw query is: '%s'",
-                        " ".join(
-                            [
-                                self._binary,
-                                "--config",
-                                self._config,
-                                "cryptdecode",
-                                mapped_remote,
-                                file_path,
-                            ]
-                        ),
+                        f"Raw query is: '{' '.join([self._binary, '--config', self._config, 'cryptdecode', mapped_remote, file_path])}'"
                     )
                     try:
                         decoded = (
@@ -62,29 +54,22 @@ class RcloneDecoder:
                         )
                     except subprocess.CalledProcessError as e:
                         logger.error(
-                            "Command '%s' returned with error (code %s): %s",
-                            e.cmd,
-                            e.returncode,
-                            e.output,
+                            f"Command '{e.cmd}' returned with error (code {e.returncode}): {e.output}"
                         )
                         return None
 
                     decoded = decoded.split(" ", 1)[1].lstrip()
 
                     if "failed" in decoded.lower():
-                        logger.error("Failed to decode path: '%s'", file_path)
+                        logger.error(f"Failed to decode path: '{file_path}'")
                     else:
                         logger.debug(
-                            "Decoded path of '%s' is: '%s'",
-                            file_path,
-                            os.path.join(crypt_dir, decoded),
+                            f"Decoded path of '{file_path}' is: '{os.path.join(crypt_dir, decoded)}'"
                         )
                         logger.info("Decode successful.")
                         return [os.path.join(crypt_dir, decoded)]
             else:
                 logger.debug(
-                    "Ignoring crypt decode for path '%s' because '%s' was not matched from 'CRYPT_MAPPINGS'.",
-                    path,
-                    crypt_dir,
+                    f"Ignoring crypt decode for path '{path}' because '{crypt_dir}' was not matched from 'CRYPT_MAPPINGS'."
                 )
         return None

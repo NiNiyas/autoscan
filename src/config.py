@@ -9,23 +9,11 @@ from copy import copy
 logger = logging.getLogger("CONFIG")
 
 
-class Singleton(type):
-    _instances = {}
-
-    def __call__(cls, *args, **kwargs):
-        if cls not in cls._instances:
-            cls._instances[cls] = super(Singleton, cls).__call__(*args, **kwargs)
-
-        return cls._instances[cls]
-
-
 class Config(object):
-    __metaclass__ = Singleton
-
     base_config = {
         "PLEX_USER": "plex",
         "PLEX_SCANNER": "/usr/lib/plexmediaserver/Plex\\ Media\\ Scanner",
-        "PLEX_SUPPORT_DIR": "/var/lib/plexmediaserver/Library/Application\ Support",
+        "PLEX_SUPPORT_DIR": "/var/lib/plexmediaserver/Library/Application\\ Support",
         "PLEX_LD_LIBRARY_PATH": "/usr/lib/plexmediaserver/lib",
         "PLEX_DATABASE_PATH": "/var/lib/plexmediaserver/Library/Application Support/Plex Media Server"
         "/Plug-in Support/Databases/com.plexapp.plugins.library.db",
@@ -74,10 +62,13 @@ class Config(object):
         "JELLYFIN_EMBY": "jellyfin",
         "JOE_API_KEY": "",
         "JOE_HOST": "http://localhost:8096",
+        "CHECK_FILESYSTEM": False,
+        "FILESYSTEM_PATHS": [],
         "GOOGLE": {
             "ENABLED": False,
             "CLIENT_ID": "",
             "CLIENT_SECRET": "",
+            "REDIRECT_URI": "",
             "ALLOWED": {
                 "FILE_PATHS": [],
                 "FILE_EXTENSIONS": False,
@@ -104,7 +95,9 @@ class Config(object):
         "logfile": {
             "argv": "--logfile",
             "env": "AUTOSCAN_LOGFILE",
-            "default": os.path.join(os.path.dirname(sys.argv[0]), "autoscan.log"),
+            "default": os.path.join(
+                os.path.dirname(sys.argv[0]), "autoscan.log"
+            ),
         },
         "loglevel": {
             "argv": "--loglevel",
@@ -136,12 +129,12 @@ class Config(object):
         cfg = copy(self.base_config)
 
         if os.name == "nt":
-            cfg[
-                "PLEX_SCANNER"
-            ] = "%PROGRAMFILES(X86)%\\Plex\\Plex Media Server\\Plex Media Scanner.exe"
-            cfg[
-                "PLEX_DATABASE_PATH"
-            ] = "%LOCALAPPDATA%\\Plex Media Server\\Plug-in Support\\Databases\\com.plexapp.plugins.library.db"
+            cfg["PLEX_SCANNER"] = (
+                "%PROGRAMFILES(X86)%\\Plex\\Plex Media Server\\Plex Media Scanner.exe"
+            )
+            cfg["PLEX_DATABASE_PATH"] = (
+                "%LOCALAPPDATA%\\Plex Media Server\\Plug-in Support\\Databases\\com.plexapp.plugins.library.db"
+            )
             cfg["RCLONE"]["BINARY"] = "%ChocolateyInstall%\\bin\\rclone.exe"
             cfg["RCLONE"][
                 "CONFIG"
@@ -166,13 +159,17 @@ class Config(object):
                 "G:\\media": ["/data/media", "DRIVENAME\\media"]
             }
         else:
-            cfg["SERVER_PATH_MAPPINGS"] = {"/mnt/unionfs/": ["/home/user/media/fused/"]}
+            cfg["SERVER_PATH_MAPPINGS"] = {
+                "/mnt/unionfs/": ["/home/user/media/fused/"]
+            }
 
         # add example file exist path mappings
         if os.name == "nt":
             cfg["SERVER_FILE_EXIST_PATH_MAPPINGS"] = {"G:\\": ["/data/"]}
         else:
-            cfg["SERVER_FILE_EXIST_PATH_MAPPINGS"] = {"/home/user/rclone/": ["/data/"]}
+            cfg["SERVER_FILE_EXIST_PATH_MAPPINGS"] = {
+                "/home/user/rclone/": ["/data/"]
+            }
 
         # add example server ignore list
         cfg["SERVER_IGNORE_LIST"] = ["/.grab/", ".DS_Store", "Thumbs.db"]
@@ -244,13 +241,13 @@ class Config(object):
 
         # add example Rclone file exists to remote mappings
         if os.name == "nt":
-            cfg["RCLONE"]["RC_CACHE_REFRESH"]["FILE_EXISTS_TO_REMOTE_MAPPINGS"] = {
-                "Media/": ["G:\\Media"]
-            }
+            cfg["RCLONE"]["RC_CACHE_REFRESH"][
+                "FILE_EXISTS_TO_REMOTE_MAPPINGS"
+            ] = {"Media/": ["G:\\Media"]}
         else:
-            cfg["RCLONE"]["RC_CACHE_REFRESH"]["FILE_EXISTS_TO_REMOTE_MAPPINGS"] = {
-                "Media/": ["/mnt/rclone/Media/"]
-            }
+            cfg["RCLONE"]["RC_CACHE_REFRESH"][
+                "FILE_EXISTS_TO_REMOTE_MAPPINGS"
+            ] = {"Media/": ["/mnt/rclone/Media/"]}
 
         return cfg
 
@@ -265,19 +262,19 @@ class Config(object):
                     merged[k] = v
                     sub_upgraded = True
                     if not key:
-                        logger.info("Added %r config option: %s", str(k), str(v))
+                        logger.info(f"Added {str(k)} config option: {str(v)}")
                     else:
                         logger.info(
-                            "Added %r to config option %r: %s", str(k), str(key), str(v)
+                            f"Added {str(k)} to config option {str(key)}: {str(v)}"
                         )
                     continue
 
                 # iterate children
-                if isinstance(v, dict) or isinstance(v, list):
+                if isinstance(v, (dict, list)):
                     merged[k], did_upgrade = self.__inner_upgrade(
                         settings1[k], settings2[k], key=k, overwrite=overwrite
                     )
-                    sub_upgraded = did_upgrade if did_upgrade else sub_upgraded
+                    sub_upgraded = did_upgrade or sub_upgraded
                 elif settings1[k] != settings2[k] and overwrite:
                     merged = settings1
                     sub_upgraded = True
@@ -286,7 +283,7 @@ class Config(object):
                 if v not in settings2:
                     merged.append(v)
                     sub_upgraded = True
-                    logger.info("Added to config option %r: %s", str(key), str(v))
+                    logger.info(f"Added to config option {str(key)}: {str(v)}")
                     continue
 
         return merged, sub_upgraded
@@ -299,13 +296,14 @@ class Config(object):
             if name in os.environ:
                 # Use JSON decoder to get same behaviour as config file
                 fields_env[name] = json.JSONDecoder().decode(os.environ[name])
-                logger.info("Using ENV setting %s=%s", name, fields_env[name])
 
         # Update in-memory config with environment settings
         currents.update(fields_env)
 
         # Do inner upgrade
-        upgraded_settings, upgraded = self.__inner_upgrade(self.base_config, currents)
+        upgraded_settings, upgraded = self.__inner_upgrade(
+            self.base_config, currents
+        )
         return upgraded_settings, upgraded
 
     def load(self):
@@ -323,7 +321,9 @@ class Config(object):
                 self.save(cfg)
                 exit(0)
             else:
-                logger.debug("Config was not upgraded as there were no changes to add.")
+                logger.debug(
+                    "Config was not upgraded as there were no changes to add."
+                )
 
         self.configs = cfg
 
@@ -332,8 +332,7 @@ class Config(object):
             json.dump(cfg, fp, indent=2, sort_keys=True)
         if exitOnSave:
             logger.info(
-                "Your config was upgraded. You may check the changes here: %r",
-                self.settings["config"],
+                f"Your config was upgraded. You may check the changes here: {self.settings['config']}"
             )
 
         if exitOnSave:
@@ -342,28 +341,25 @@ class Config(object):
     def get_settings(self):
         setts = {}
         for name, data in self.base_settings.items():
-            # Argrument priority: cmd < environment < default
+            # Argument priority: cmd < environment < default
             try:
                 value = None
                 # Command line argument
                 if self.args[name]:
                     value = self.args[name]
-                    logger.info("Using ARG setting %s=%s", name, value)
+                    logger.info(f"Using ARG setting {name}={value}")
 
-                # Envirnoment variable
                 elif data["env"] in os.environ:
                     value = os.environ[data["env"]]
-                    logger.info("Using ENV setting %s=%s" % (data["env"], value))
-
-                # Default
+                    logger.info(f'Using ENV setting {data["env"]}={value}')
                 else:
                     value = data["default"]
-                    logger.info("Using default setting %s=%s" % (data["argv"], value))
-
+                    logger.info(f'Using default setting {data["argv"]}={value}')
                 setts[name] = os.path.expandvars(value)
-
             except Exception:
-                logger.exception("Exception retrieving setting value: %r" % name)
+                logger.exception(
+                    f"Exception retrieving setting value: {name}: "
+                )
 
         return setts
 
@@ -371,7 +367,7 @@ class Config(object):
     def parse_args(self):
         parser = argparse.ArgumentParser(
             description=(
-                "Script to assist Sonarr/Radarr/Lidarr with Plex/Jellyfin/Emby imports so that it will only scan the folder that has been imported, instead of the entire library section."
+                "Script to assist arrs with Plex/Jellyfin/Emby imports so that it will only scan the folder that has been imported, instead of the entire library section."
             ),
             formatter_class=argparse.RawTextHelpFormatter,
         )
@@ -402,8 +398,7 @@ class Config(object):
             self.base_settings["config"]["argv"],
             nargs="?",
             const=None,
-            help="Config file location (default: %s)"
-            % self.base_settings["config"]["default"],
+            help=f'Config file location (default: {self.base_settings["config"]["default"]})',
         )
 
         # Log file
@@ -411,8 +406,7 @@ class Config(object):
             self.base_settings["logfile"]["argv"],
             nargs="?",
             const=None,
-            help="Log file location (default: %s)"
-            % self.base_settings["logfile"]["default"],
+            help=f'Log file location (default: {self.base_settings["logfile"]["default"]})',
         )
 
         # Queue file
@@ -420,8 +414,7 @@ class Config(object):
             self.base_settings["queuefile"]["argv"],
             nargs="?",
             const=None,
-            help="Queue file location (default: %s)"
-            % self.base_settings["queuefile"]["default"],
+            help=f'Queue file location (default: {self.base_settings["queuefile"]["default"]})',
         )
 
         # Cache file
@@ -429,20 +422,17 @@ class Config(object):
             self.base_settings["cachefile"]["argv"],
             nargs="?",
             const=None,
-            help="Google cache file location (default: %s)"
-            % self.base_settings["cachefile"]["default"],
+            help=f'Google cache file location (default: {self.base_settings["cachefile"]["default"]})',
         )
 
         # Logging level
         parser.add_argument(
             self.base_settings["loglevel"]["argv"],
             choices=("WARN", "INFO", "DEBUG"),
-            help="Log level (default: %s)" % self.base_settings["loglevel"]["default"],
+            help=f'Log level (default: {self.base_settings["loglevel"]["default"]})',
         )
 
-        # Print help by default if no arguments
-        if len(sys.argv) == 1:
-            parser.print_help()
-            sys.exit(0)
-        else:
+        if len(sys.argv) != 1:
             return vars(parser.parse_args())
+        parser.print_help()
+        sys.exit(0)

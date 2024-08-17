@@ -1,0 +1,5 @@
+#!/command/with-contenv bash
+
+umask "${UMASK}"
+
+exec s6-setuidgid autoscan python3 /usr/src/app/src/scan.py ${AUTOSCAN_COMMAND}
