@@ -64,10 +64,10 @@ jobs:
             OVERLAY_ARCH=aarch64
 
       - name: Create and push manifest images
-        uses: Noelware/docker-manifest-action@master
+        uses: Noelware/docker-manifest-action@0.4.3
         with:
           inputs: ghcr.io/${{ secrets.GIT_USER }}/autoscan:latest
-          images: ghcr.io/${{ secrets.GIT_USER }}/autoscan:amd64,ghcr.io/${{ secrets.GIT_USER }}/autoscan:arm64
+          tags: ghcr.io/${{ secrets.GIT_USER }}/autoscan:amd64,ghcr.io/${{ secrets.GIT_USER }}/autoscan:arm64
           push: true
 
       - name: ntfy success notifications
