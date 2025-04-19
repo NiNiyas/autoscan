@@ -1,6 +1,6 @@
 [tool.black]
 line-length = 80
-target-version = ["py312"]
+target-version = ["py313"]
 include = '''
 /(
   | src/.*\.py?

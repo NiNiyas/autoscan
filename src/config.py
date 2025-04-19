@@ -30,7 +30,7 @@ class Config(object):
         "PLEX_TOKEN": "",
         "PLEX_CHECK_BEFORE_SCAN": True,
         "SERVER_IP": "0.0.0.0",
-        "SERVER_PORT": 3467,
+        "SERVER_PORT": 3468,
         "SERVER_PASS": uuid.uuid4().hex,
         "SERVER_PATH_MAPPINGS": {},
         "SERVER_SCAN_DELAY": 180,
