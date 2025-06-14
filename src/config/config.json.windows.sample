@@ -102,5 +102,6 @@
   "USE_SUDO": false,
   "JELLYFIN_EMBY": "jellyfin",
   "JOE_API_KEY": "",
-  "JOE_HOST": "http://localhost:8096"
+  "JOE_HOST": "http://localhost:8096",
+  "JOE_ENTIRE_REFRESH": false
 }

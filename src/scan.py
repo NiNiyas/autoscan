@@ -122,27 +122,39 @@ HTML_BASE = """
 
 
 def queue_processor():
-    logger.info("Starting queue processor in 10 seconds...")
-    time.sleep(10)
+    logger.info("Starting queue processor in 3 seconds...")
+    time.sleep(3)
     try:
         logger.info("Queue processor started.")
         db_scan_requests = db.get_all_items()
         items = 0
         for db_item in db_scan_requests:
-            thread.start(
-                plex.scan,
-                args=[
-                    conf.configs,
-                    scan_lock,
-                    db_item["scan_path"],
-                    db_item["scan_for"],
-                    db_item["scan_section"],
-                    db_item["scan_type"],
-                    resleep_paths,
-                ],
-            )
-            items += 1
-            time.sleep(2)
+            if conf.configs["ENABLE_PLEX"]:
+                thread.start(
+                    plex.scan,
+                    args=[
+                        conf.configs,
+                        scan_lock,
+                        db_item["scan_path"],
+                        db_item["scan_for"],
+                        db_item["scan_section"],
+                        db_item["scan_type"],
+                        resleep_paths,
+                    ],
+                )
+                items += 1
+                time.sleep(2)
+            if conf.configs["ENABLE_JOE"]:
+                thread.start(
+                    jelly_emby.scan,
+                    args=[
+                        conf.configs,
+                        db_item["scan_path"],
+                        db_item["scan_for"],
+                    ],
+                )
+                items += 1
+                time.sleep(2)
         logger.info(f"Restored {items} scan request(s) from Autoscan database.")
     except Exception:
         logger.exception(
@@ -441,12 +453,12 @@ def manual_scan():
                         <form action="" method="post">
                             <div class="input-group mb-3">
                                 <input class="form-control" type="text" name="filepath" value="" required="required" autocomplete="off" placeholder="Path to scan e.g. /mnt/unionfs/Media/Movies/Movie Name (year)/" aria-label="Path to scan e.g. /mnt/unionfs/Media/Movies/Movie Name (year)/" aria-describedby="btn-submit">
-                                <div class="ms-2 input-group-append"><input class="btn btn-outline-secondary primary" type="submit" value="Submit" id="btn-submit" {'disabled' if GOOGLE_AUTH else ''}></div>
+                                <div class="ms-2 input-group-append"><input class="btn btn-outline-secondary primary" type="submit" value="Submit" id="btn-submit" {"disabled" if GOOGLE_AUTH else ""}></div>
                                 <input type="hidden" name="eventType" value="Manual">
                             </div>
                         </form>
-                        {'<div><div class="alert alert-danger" role="alert">You are currently in the middle of authenticating with Google. Please continue with that before proceeding with the scan.</div></div>' if GOOGLE_AUTH else ''}
-                        {'<div class="alert alert-info" role="alert">Clicking <b>Submit</b> will add the path to the scan queue.</div>' if not GOOGLE_AUTH else ''}
+                        {'<div><div class="alert alert-danger" role="alert">You are currently in the middle of authenticating with Google. Please continue with that before proceeding with the scan.</div></div>' if GOOGLE_AUTH else ""}
+                        {'<div class="alert alert-info" role="alert">Clicking <b>Submit</b> will add the path to the scan queue.</div>' if not GOOGLE_AUTH else ""}
                     </div>
                 </div>
             </div>

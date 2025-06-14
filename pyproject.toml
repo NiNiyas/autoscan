@@ -1,8 +1,9 @@
-[tool.black]
+[tool.ruff]
 line-length = 80
-target-version = ["py313"]
-include = '''
-/(
-  | src/.*\.py?
-)
-'''
+target-version = "py313"
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
+line-ending = "auto"

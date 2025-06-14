@@ -436,7 +436,7 @@ def match_item_parent(
         )
 
     # generate new guid
-    new_guid = f'com.plexapp.agents.{scan_lookup_type.lower()}://{str(scan_lookup_id).lower()}?lang={config["PLEX_FIX_MISMATCHED_LANG"].lower()}'
+    new_guid = f"com.plexapp.agents.{scan_lookup_type.lower()}://{str(scan_lookup_id).lower()}?lang={config['PLEX_FIX_MISMATCHED_LANG'].lower()}"
     # does good match?
     if parent_guid and (parent_guid.lower() != new_guid):
         logger.debug(
@@ -515,10 +515,10 @@ def analyze_item(config, scan_path):
         )
 
         if config["USE_DOCKER"]:
-            final_cmd = f'docker exec -u {cmd_quote(config["PLEX_USER"])} -i {cmd_quote(config["DOCKER_NAME"])} bash -c {cmd_quote(cmd)}'
+            final_cmd = f"docker exec -u {cmd_quote(config['PLEX_USER'])} -i {cmd_quote(config['DOCKER_NAME'])} bash -c {cmd_quote(cmd)}"
         elif config["USE_SUDO"]:
             final_cmd = (
-                f'sudo -u {config["PLEX_USER"]} bash -c {cmd_quote(cmd)}'
+                f"sudo -u {config['PLEX_USER']} bash -c {cmd_quote(cmd)}"
             )
         else:
             final_cmd = cmd

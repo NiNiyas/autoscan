@@ -107,14 +107,25 @@ In most cases you'll need to add additional volumes, to access your files.
 
 You can find the systemd service file in [system](system).
 
-### Available environment variables
+### Available Environment Variables and Command-Line Arguments
 
-- `AUTOSCAN_CONFIG` - `config.json` location.
-- `AUTOSCAN_LOGFILE` - Logfile location.
-- `AUTOSCAN_LOGLEVEL` - Log level.
-- `AUTOSCAN_QUEUEFILE` - `queue.db` location.
-- `AUTOSCAN_CACHEFILE` - `cache.db` location.
-- `AUTOSCAN_COMMAND`(Docker specific) - Command to run on start.
+| Environment Variable | CLI Argument  | Description                                |
+|----------------------|---------------|--------------------------------------------|
+| `AUTOSCAN_CONFIG`    | `--config`    | Path to `config.json`.                     |
+| `AUTOSCAN_LOGFILE`   | `--logfile`   | Path to logfile.                           |
+| `AUTOSCAN_LOGLEVEL`  | `--loglevel`  | Log verbosity level.                       |
+| `AUTOSCAN_QUEUEFILE` | `--queuefile` | Path to `queue.db`.                        |
+| `AUTOSCAN_CACHEFILE` | `--cachefile` | Path to `cache.db`.                        |
+| `AUTOSCAN_COMMAND`   | `-`           | Command to run on start (Docker specific). |
+
+### Available Commands
+
+- `server`: Starts the application.
+- `sections`: Prints Plex Sections with more details.
+- `jesections`: Prints Jellyfin/Emby library paths.
+- `authorize`: Authorize against a Google account.
+- `build_caches`: Build complete Google Drive caches.
+- `update_config`: Perform upgrade of config.
 
 # Configuration
 
@@ -341,6 +352,7 @@ items. Default is `false`.
 "JELLYFIN_EMBY": "jellyfin",
 "JOE_API_KEY": "",
 "JOE_HOST": "http://localhost:8096"
+"JOE_ENTIRE_REFRESH": false
 ```
 
 `ENABLE_JOE` - Enable or Disable Jellyfin/Emby.
@@ -350,6 +362,9 @@ items. Default is `false`.
 `JOE_API_KEY` - Jellyfin/Emby API key. Make one at `http://<jellyfinoremby_host>/web/index.html#/apikeys.html`.
 
 `JOE_HOST` - Jellyfin/Emby server url with no trailing slash.
+
+`JOE_ENTIRE_REFRESH` - This option triggers a full refresh of all libraries on the server.
+**Be aware that this process may take a significant amount of time depending on the size and number of your libraries.**
 
 ### Sections
 

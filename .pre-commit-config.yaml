@@ -2,11 +2,11 @@ default_language_version:
     python: python3.13
 
 repos:
-  - repo: https://github.com/psf/black-pre-commit-mirror
-    rev: 25.1.0
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.11.13
     hooks:
-      - id: black
+      - id: ruff
         language_version: python3.13
-        description: "Black: The uncompromising Python code formatter"
-        entry: black
+        description: "An extremely fast Python linter and code formatter, written in Rust."
+        entry: ruff format
         language: python

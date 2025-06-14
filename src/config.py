@@ -62,6 +62,7 @@ class Config(object):
         "JELLYFIN_EMBY": "jellyfin",
         "JOE_API_KEY": "",
         "JOE_HOST": "http://localhost:8096",
+        "JOE_ENTIRE_REFRESH": False,
         "CHECK_FILESYSTEM": False,
         "FILESYSTEM_PATHS": [],
         "GOOGLE": {
@@ -136,9 +137,9 @@ class Config(object):
                 "%LOCALAPPDATA%\\Plex Media Server\\Plug-in Support\\Databases\\com.plexapp.plugins.library.db"
             )
             cfg["RCLONE"]["BINARY"] = "%ChocolateyInstall%\\bin\\rclone.exe"
-            cfg["RCLONE"][
-                "CONFIG"
-            ] = "%HOMEDRIVE%%HOMEPATH%\\.config\\rclone\\rclone.conf"
+            cfg["RCLONE"]["CONFIG"] = (
+                "%HOMEDRIVE%%HOMEPATH%\\.config\\rclone\\rclone.conf"
+            )
 
         # add example scan priorities
         cfg["SERVER_SCAN_PRIORITIES"] = {
@@ -351,10 +352,10 @@ class Config(object):
 
                 elif data["env"] in os.environ:
                     value = os.environ[data["env"]]
-                    logger.info(f'Using ENV setting {data["env"]}={value}')
+                    logger.info(f"Using ENV setting {data['env']}={value}")
                 else:
                     value = data["default"]
-                    logger.info(f'Using default setting {data["argv"]}={value}')
+                    logger.info(f"Using default setting {data['argv']}={value}")
                 setts[name] = os.path.expandvars(value)
             except Exception:
                 logger.exception(
@@ -398,7 +399,7 @@ class Config(object):
             self.base_settings["config"]["argv"],
             nargs="?",
             const=None,
-            help=f'Config file location (default: {self.base_settings["config"]["default"]})',
+            help=f"Config file location (default: {self.base_settings['config']['default']})",
         )
 
         # Log file
@@ -406,7 +407,7 @@ class Config(object):
             self.base_settings["logfile"]["argv"],
             nargs="?",
             const=None,
-            help=f'Log file location (default: {self.base_settings["logfile"]["default"]})',
+            help=f"Log file location (default: {self.base_settings['logfile']['default']})",
         )
 
         # Queue file
@@ -414,7 +415,7 @@ class Config(object):
             self.base_settings["queuefile"]["argv"],
             nargs="?",
             const=None,
-            help=f'Queue file location (default: {self.base_settings["queuefile"]["default"]})',
+            help=f"Queue file location (default: {self.base_settings['queuefile']['default']})",
         )
 
         # Cache file
@@ -422,14 +423,14 @@ class Config(object):
             self.base_settings["cachefile"]["argv"],
             nargs="?",
             const=None,
-            help=f'Google cache file location (default: {self.base_settings["cachefile"]["default"]})',
+            help=f"Google cache file location (default: {self.base_settings['cachefile']['default']})",
         )
 
         # Logging level
         parser.add_argument(
             self.base_settings["loglevel"]["argv"],
             choices=("WARN", "INFO", "DEBUG"),
-            help=f'Log level (default: {self.base_settings["loglevel"]["default"]})',
+            help=f"Log level (default: {self.base_settings['loglevel']['default']})",
         )
 
         if len(sys.argv) != 1:
