@@ -123,6 +123,7 @@ You can find the systemd service file in [system](system).
 - `server`: Starts the application.
 - `sections`: Prints Plex Sections with more details.
 - `jesections`: Prints Jellyfin/Emby library paths.
+- `jelly_tasks`: Prints Jellyfin scheduled tasks with id, name and description.
 - `authorize`: Authorize against a Google account.
 - `build_caches`: Build complete Google Drive caches.
 - `update_config`: Perform upgrade of config.

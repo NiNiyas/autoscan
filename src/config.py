@@ -63,6 +63,8 @@ class Config(object):
         "JOE_API_KEY": "",
         "JOE_HOST": "http://localhost:8096",
         "JOE_ENTIRE_REFRESH": False,
+        "JELLYFIN_TRIGGER_SCHEDULED_TASKS": False,
+        "JELLYFIN_SCHEDULED_TASK_IDS": [],
         "CHECK_FILESYSTEM": False,
         "FILESYSTEM_PATHS": [],
         "GOOGLE": {
@@ -383,10 +385,12 @@ class Config(object):
                 "build_caches",
                 "update_config",
                 "jesections",
+                "jelly_tasks",
             ),
             help=(
                 '"sections": Prints Plex Sections with more details.\n'
                 '"jesections": Prints Jellyfin/Emby library paths.\n'
+                '"jelly_tasks": Prints Jellyfin Scheduled Tasks IDs with name and description.\n'
                 '"server": Starts the application.\n'
                 '"authorize": Authorize against a Google account.\n'
                 '"build_caches": Build complete Google Drive caches.\n'

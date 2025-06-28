@@ -101,5 +101,7 @@
   "JELLYFIN_EMBY": "jellyfin",
   "JOE_API_KEY": "",
   "JOE_HOST": "http://localhost:8096",
-  "JOE_ENTIRE_REFRESH": false
+  "JOE_ENTIRE_REFRESH": false,
+  "JELLYFIN_TRIGGER_SCHEDULED_TASKS": false,
+  "JELLYFIN_SCHEDULED_TASK_IDS": []
 }

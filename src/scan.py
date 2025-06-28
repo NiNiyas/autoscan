@@ -792,6 +792,9 @@ if __name__ == "__main__":
     elif conf.args["cmd"] == "jesections":
         jelly_emby.get_library_paths(conf)
         exit(0)
+    elif conf.args["cmd"] == "jelly_tasks":
+        jelly_emby.get_scheduled_tasks(conf)
+        exit(0)
     elif conf.args["cmd"] == "update_config":
         exit(0)
     elif conf.args["cmd"] == "authorize":
