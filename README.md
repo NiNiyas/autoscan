@@ -353,7 +353,9 @@ items. Default is `false`.
 "JELLYFIN_EMBY": "jellyfin",
 "JOE_API_KEY": "",
 "JOE_HOST": "http://localhost:8096"
-"JOE_ENTIRE_REFRESH": false
+"JOE_ENTIRE_REFRESH": false,
+"JELLYFIN_TRIGGER_SCHEDULED_TASKS": false,
+"JELLYFIN_SCHEDULED_TASK_IDS": []
 ```
 
 `ENABLE_JOE` - Enable or Disable Jellyfin/Emby.
@@ -366,6 +368,10 @@ items. Default is `false`.
 
 `JOE_ENTIRE_REFRESH` - This option triggers a full refresh of all libraries on the server.
 **Be aware that this process may take a significant amount of time depending on the size and number of your libraries.**
+
+`JELLYFIN_TRIGGER_SCHEDULED_TASKS` - Trigger scheduled tasks after scan. This is only supported on Jellyfin.
+
+`JELLYFIN_SCHEDULED_TASK_IDS` - The scheduled task ids to trigger
 
 ### Sections
 
