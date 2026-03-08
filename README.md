@@ -124,7 +124,6 @@ You can find the systemd service file in [system](system).
 - `sections`: Prints Plex Sections with more details.
 - `jesections`: Prints Jellyfin/Emby library paths.
 - `jelly_tasks`: Prints Jellyfin scheduled tasks with id, name and description.
-- `authorize`: Authorize against a Google account.
 - `build_caches`: Build complete Google Drive caches.
 - `update_config`: Perform upgrade of config.
 
@@ -132,10 +131,11 @@ You can find the systemd service file in [system](system).
 
 **Changes to config file require a restart of the Autoscan.**
 
+**All config options can be changed from the webui.**
+
 ## Example
 
-You can find example config files for both Windows and Ubuntu/Debian
-in [config](src/config) folder.
+You can find example config files for both Windows and Ubuntu/Debian in [config](src/config) folder.
 
 ## Basics
 
@@ -145,11 +145,11 @@ in [config](src/config) folder.
 
 `USE_SUDO` - This option is typically used in conjunction with `PLEX_USER` (e.g. `sudo -u plex`). Default is `true`.
 
-- The user that runs utoscan needs to be able to sudo without a password, otherwise it cannot execute
+- The user that runs autoscan needs to be able to sudo without a password, otherwise it cannot execute
   the `PLEX_SCANNER` command as `plex`. If the user cannot sudo without password, set this option to `false`.
 
 - If the user that runs Autoscan is able to run the `PLEX_SCANNER` command without sudo or is installed with the
-  same user account (e.g. `plex`), you can you can set this to `false`.
+  same user account (e.g. `plex`), you can set this to `false`.
 
 ## Docker
 
@@ -204,8 +204,7 @@ to `true`.
 
   or
 
-- Read article
-  from [Plex Support](https://support.plex.tv/hc/en-us/articles/204059436-Finding-an-authentication-token-X-Plex-Token).
+- Read article from [Plex Support](https://support.plex.tv/hc/en-us/articles/204059436-Finding-an-authentication-token-X-Plex-Token).
 
 `PLEX_LOCAL_URL` - URL of the Plex Media Server. Can be localhost or http/https address.
 
@@ -576,7 +575,7 @@ You can leave this empty if it is not required:
   },
 ```
 
-`RUN_COMMAND_BEFORE_SCAN` - If a command is supplied, it is executed before the Plex Media Scanner command.
+`RUN_COMMAND_BEFORE_SCAN` - If a command is supplied, it is executed before the scan request is sent.
 
 `RUN_COMMAND_AFTER_SCAN` - If a command is supplied, it is executed after the Plex Media Scanner, Empty Trash and
 Analyze commands.
@@ -587,11 +586,11 @@ filepath. Default is `false`.
 - All path mappings and section ID mappings, of the server, apply.
 - This is also a good way of testing your configuration, manually.
 - To send a manual scan, you can either:
-    - Visit your webhook url in a browser (e.g. http://ipaddress:3468/0c1fa3c9867e48b1bb3aa055cb86), and fill in the
-      path to scan.
+    - Visit your webui, and fill in the path to scan.
       ![](assets/autoscan.png)
 
       or
+
     - Initiate a scan via HTTP (e.g. curl):
 
       ```
@@ -629,8 +628,6 @@ folder is already in the process queue, the duplicate request will be ignored.
 
 - **If you have been using the old authentication method, you will need to delete `cache.db` database
   and `cache.db-journal` if it is present.**
-- **If you are using Docker, you need to set the `AUTOSCAN_COMMAND` variable to `authorize` to start the authorization flow and
-  restart without `AUTOSCAN_COMMAND` variable.**
 
 ```json
   "GOOGLE": {
@@ -729,7 +726,7 @@ config.
 
 `TEAMDRIVE` - Enable or Disable monitoring of changes inside Team Drives. Default is `false`.
 
-- _Note: For the `TEAMDRIVE` setting to take effect, you set this to `true` and run the authorize command (see below)._
+- _Note: For the `TEAMDRIVE` setting to take effect, you set this to `true` and login from the webui (see below)._
 
 `TEAMDRIVES` - What Team Drives to monitor. Requires `TEAMDRIVE` to be enabled.
 
@@ -795,23 +792,10 @@ To set this up:
 
 - Next, you will need to authorize Google Drive.
 
-    - Native Install
-       ```shell
-         python scan.py authorize
-       ```
-
-    - Docker install
-        - You need to set the `AUTOSCAN_COMMAND` environment variable to `authorize` and start the container.
-
-
-- Visit the link shown and login.
-
-    ``` 
-    2018-06-24 05:57:58,511 -     INFO -  AUTOSCAN [140007964366656]: https://accounts.google.com/o/oauth2/v2/...
-    ```
-
-- After successful authentication, you will be redirected.
-
+    - Visit the webui and click on `Connect Google Drive`.
+       ![Drive Login Flow (1).png](assets/Drive%20Login%20Flow%20(1).png)
+    - After successful authentication, you will be redirected.
+       ![rive Login Flow Complete](assets/Drive%20Login%20Flow%20Complete.png)
 
 - You will now need to add in your Google Drive paths into `SERVER_PATH_MAPPINGS`. This will tell Autoscan to map
   Google Drive paths to their local counterpart.
@@ -828,14 +812,13 @@ To set this up:
           },
           ```
 
-          _Note 1: The Google Drive path does not start with a forward slash (` / `). Paths in My Drive will start with
+          _**Note 1**: The Google Drive path does not start with a forward slash (` / `). Paths in My Drive will start with
           just `My Drive/`. and paths in a Google Teamdrive will start with `teamdrive_name/`._
 
-          _Note 2: Foreign users of Google Drive might not see `My Drive` listed on their Google Drive. They can try
+          _**Note 2**: Foreign users of Google Drive might not see `My Drive` listed on their Google Drive. They can try
           using
           the `My Drive/...` path or see what the log shows and match it up to that. One example is `Mon\u00A0Drive/`
-          for
-          French users._
+          for French users._
 
         - For example, if you store your files under My Drive's Media folder (`My Drive/Media/...`), the server path
           mappings will look like this:

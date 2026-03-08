@@ -381,7 +381,6 @@ class Config(object):
             choices=(
                 "sections",
                 "server",
-                "authorize",
                 "build_caches",
                 "update_config",
                 "jesections",
@@ -392,7 +391,6 @@ class Config(object):
                 '"jesections": Prints Jellyfin/Emby library paths.\n'
                 '"jelly_tasks": Prints Jellyfin Scheduled Tasks IDs with name and description.\n'
                 '"server": Starts the application.\n'
-                '"authorize": Authorize against a Google account.\n'
                 '"build_caches": Build complete Google Drive caches.\n'
                 '"update_config": Perform upgrade of config.'
             ),
