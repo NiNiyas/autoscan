@@ -6,6 +6,7 @@ from copy import copy
 from threading import Lock
 from time import time
 
+from oauthlib.oauth2.rfc6749.errors import InvalidClientIdError, MissingTokenError, TokenExpiredError
 from requests_oauthlib import OAuth2Session
 
 from .cache import Cache
@@ -299,6 +300,18 @@ class GoogleDrive:
                 resp,
                 resp_json if (resp_json and len(resp_json)) else resp.text,
             )
+        except (InvalidClientIdError, MissingTokenError, TokenExpiredError) as exc:
+            if "refresh_token" in str(exc).lower() or isinstance(exc, (MissingTokenError, TokenExpiredError)):
+                logger.error(
+                    "Google OAuth token refresh failed: the stored token is missing 'refresh_token'. "
+                    "Please re-authorize autoscan by visiting the web UI and completing the Google Drive "
+                    "login flow again (Settings → Google Drive)."
+                )
+            else:
+                logger.error(
+                    f"Google OAuth error sending request to {request_url}: {exc}"
+                )
+            return False, resp, None
         except Exception:
             logger.exception(
                 f"Exception sending request to {request_url} with kwargs={kwargs}: "
@@ -615,11 +628,18 @@ class GoogleDrive:
 
     def _load_token(self):
         try:
-            return (
+            token = (
                 self.settings_cache["token"]
                 if "token" in self.settings_cache
                 else {}
             )
+            if token and "refresh_token" not in token:
+                logger.warning(
+                    "Loaded Google OAuth token is missing 'refresh_token'. "
+                    "Automatic token refresh will fail when the access token expires. "
+                    "Please re-authorize autoscan via the web UI to obtain a new token."
+                )
+            return token
         except Exception:
             logger.exception("Exception loading token from cache: ")
         return {}
@@ -633,6 +653,8 @@ class GoogleDrive:
         return False
 
     def _token_saver(self, token):
+        if "refresh_token" not in token and "refresh_token" in self.token:
+            token["refresh_token"] = self.token["refresh_token"]
         # update internal token dict
         self.token.update(token)
         try:
