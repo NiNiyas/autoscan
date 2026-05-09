@@ -181,7 +181,7 @@ class GoogleDrive:
         auth_url, state = self.http.authorization_url(
             self.auth_url,
             access_type="offline",
-            prompt="select_account",
+            prompt="consent",
             state="autoscan",
         )
         return auth_url
@@ -190,9 +190,21 @@ class GoogleDrive:
         token = self.http.fetch_token(
             self.token_url, code=code, client_secret=self.client_secret
         )
-        if "access_token" in token:
-            self._token_saver(token)
-            # pull in existing team drives and create cache for them
+        if "access_token" not in token:
+            logger.error("Google OAuth token exchange failed: no access_token in response.")
+            return self.token
+
+        if "refresh_token" not in token:
+            logger.error(
+                "Google OAuth token exchange did not return a refresh_token. "
+                "The access token will expire in ~1 hour and cannot be renewed. "
+                "Try revoking app access at https://myaccount.google.com/permissions "
+                "and then re-authorize."
+            )
+        else:
+            logger.info("Google OAuth token exchange returned a refresh_token \u2014 token renewal will work.")
+
+        self._token_saver(token)
         return self.token
 
     def query(
