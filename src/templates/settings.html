@@ -1,0 +1,333 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container" style="max-width: 1200px; padding-top: 20px; padding-bottom: 80px;">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>Settings</h1>
+        <a href="{{ base_url }}" class="btn btn-outline-secondary">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-arrow-left me-1" viewBox="0 0 16 16">
+                <path fill-rule="evenodd" d="M15 8a.5.5 0 0 0-.5-.5H2.707l3.147-3.146a.5.5 0 1 0-.708-.708l-4 4a.5.5 0 0 0 0 .708l4 4a.5.5 0 0 0 .708-.708L2.707 8.5H14.5A.5.5 0 0 0 15 8"/>
+            </svg>
+            Back to Home
+        </a>
+    </div>
+
+    <div class="alert alert-warning mb-4">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-exclamation-triangle me-2" viewBox="0 0 16 16">
+            <path d="M7.938 2.016A.13.13 0 0 1 8.002 2a.13.13 0 0 1 .063.016.15.15 0 0 1 .054.057l6.857 11.667c.036.06.035.124.002.183a.2.2 0 0 1-.054.06.1.1 0 0 1-.066.017H1.146a.1.1 0 0 1-.066-.017.2.2 0 0 1-.054-.06.18.18 0 0 1 .002-.183L7.884 2.073a.15.15 0 0 1 .054-.057m1.044-.45a1.13 1.13 0 0 0-1.96 0L.165 13.233c-.457.778.091 1.767.98 1.767h13.713c.889 0 1.438-.99.98-1.767z"/>
+            <path d="M7.002 12a1 1 0 1 1 2 0 1 1 0 0 1-2 0M7.1 5.995a.905.905 0 1 1 1.8 0l-.35 3.507a.552.552 0 0 1-1.1 0z"/>
+        </svg>
+        <strong>Warning:</strong> Some settings require a server restart to take effect.
+    </div>
+
+    <!-- Tabs Navigation -->
+    <ul class="nav nav-tabs mb-4" id="settingsTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="server-tab" data-bs-toggle="tab" data-bs-target="#server" type="button" role="tab">Server</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="plex-tab" data-bs-toggle="tab" data-bs-target="#plex" type="button" role="tab">Plex</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="jellyfin-tab" data-bs-toggle="tab" data-bs-target="#jellyfin" type="button" role="tab">Jellyfin/Emby</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="google-tab" data-bs-toggle="tab" data-bs-target="#google" type="button" role="tab">Google</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="rclone-tab" data-bs-toggle="tab" data-bs-target="#rclone" type="button" role="tab">Rclone</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="filesystem-tab" data-bs-toggle="tab" data-bs-target="#filesystem" type="button" role="tab">Filesystem</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="advanced-tab" data-bs-toggle="tab" data-bs-target="#advanced" type="button" role="tab">Advanced</button>
+        </li>
+    </ul>
+
+    <!-- Tab Content -->
+    <div class="tab-content" id="settingsTabContent">
+        <div class="tab-pane fade show active" id="server" role="tabpanel">
+            <div class="card"><div class="card-body" id="server-settings"></div></div>
+        </div>
+        <div class="tab-pane fade" id="plex" role="tabpanel">
+            <div class="card"><div class="card-body" id="plex-settings"></div></div>
+        </div>
+        <div class="tab-pane fade" id="jellyfin" role="tabpanel">
+            <div class="card"><div class="card-body" id="jellyfin-settings"></div></div>
+        </div>
+        <div class="tab-pane fade" id="google" role="tabpanel">
+            <div class="card"><div class="card-body" id="google-settings"></div></div>
+        </div>
+        <div class="tab-pane fade" id="rclone" role="tabpanel">
+            <div class="card"><div class="card-body" id="rclone-settings"></div></div>
+        </div>
+        <div class="tab-pane fade" id="filesystem" role="tabpanel">
+            <div class="card"><div class="card-body" id="filesystem-settings"></div></div>
+        </div>
+        <div class="tab-pane fade" id="advanced" role="tabpanel">
+            <div class="card"><div class="card-body" id="advanced-settings"></div></div>
+        </div>
+    </div>
+
+    <!-- Save Button -->
+    <div class="d-flex justify-content-end mt-4 gap-2">
+        <button class="btn btn-outline-secondary" onclick="loadConfig()">Reset Changes</button>
+        <button class="btn btn-primary" id="saveBtn" onclick="saveConfig()">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-check-lg me-1" viewBox="0 0 16 16">
+                <path d="M12.736 3.97a.733.733 0 0 1 1.047 0c.286.289.29.756.01 1.05L7.88 12.01a.733.733 0 0 1-1.065.02L3.217 8.384a.757.757 0 0 1 0-1.06.733.733 0 0 1 1.047 0l3.052 3.093 5.4-6.425z"/>
+            </svg>
+            Save Changes
+        </button>
+    </div>
+</div>
+
+<!-- Toast -->
+<div class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index: 1100;">
+    <div id="toast" class="toast" role="alert">
+        <div class="toast-header">
+            <strong class="me-auto" id="toastTitle">Autoscan</strong>
+            <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
+        </div>
+        <div class="toast-body" id="toastBody"></div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+    let originalConfig = {};
+    let currentConfig = {};
+
+    const categoryContainers = {
+        'Plex': 'plex-settings',
+        'Server': 'server-settings',
+        'Jellyfin/Emby': 'jellyfin-settings',
+        'Google': 'google-settings',
+        'Rclone': 'rclone-settings',
+        'Filesystem': 'filesystem-settings',
+        'Advanced': 'advanced-settings',
+        'Other': 'advanced-settings'
+    };
+
+    function showToast(message, isError = false) {
+        const toast = document.getElementById('toast');
+        const toastBody = document.getElementById('toastBody');
+        const toastTitle = document.getElementById('toastTitle');
+        toastBody.textContent = message;
+        toastTitle.textContent = isError ? 'Error' : 'Success';
+        toast.className = 'toast ' + (isError ? 'text-bg-danger' : 'text-bg-success');
+        const bsToast = new bootstrap.Toast(toast, { delay: 4000 });
+        bsToast.show();
+    }
+
+    function createInputField(key, config) {
+        const { value, type, label, options, description } = config;
+        const id = `config-${key}`;
+        let html = `<div class="mb-3 config-field">`;
+        html += `<label class="form-label" for="${id}">${label}</label>`;
+
+        if (type === 'boolean') {
+            html += `
+                <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" id="${id}" data-key="${key}" ${value ? 'checked' : ''}>
+                </div>`;
+        } else if (type === 'number') {
+            html += `<input type="number" class="form-control" id="${id}" data-key="${key}" value="${value}">`;
+        } else if (type === 'password') {
+            html += `
+                <div class="input-group">
+                    <input type="password" class="form-control" id="${id}" data-key="${key}" value="${value}">
+                    <button class="btn btn-outline-secondary" type="button" onclick="togglePassword('${id}')">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-eye" viewBox="0 0 16 16">
+                            <path d="M16 8s-3-5.5-8-5.5S0 8 0 8s3 5.5 8 5.5S16 8 16 8M1.173 8a13 13 0 0 1 1.66-2.043C4.12 4.668 5.88 3.5 8 3.5s3.879 1.168 5.168 2.457A13 13 0 0 1 14.828 8q-.086.13-.195.288c-.335.48-.83 1.12-1.465 1.755C11.879 11.332 10.119 12.5 8 12.5s-3.879-1.168-5.168-2.457A13 13 0 0 1 1.172 8z"/>
+                            <path d="M8 5.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5M4.5 8a3.5 3.5 0 1 1 7 0 3.5 3.5 0 0 1-7 0"/>
+                        </svg>
+                    </button>
+                </div>`;
+        } else if (type === 'array') {
+            const arrayValue = Array.isArray(value) ? value.join('\n') : '';
+            html += `<textarea class="form-control" id="${id}" data-key="${key}" data-type="array" rows="3" placeholder="One item per line">${arrayValue}</textarea>`;
+        } else if (type === 'object') {
+            const objValue = typeof value === 'object' ? JSON.stringify(value, null, 2) : '{}';
+            html += `<textarea class="form-control font-monospace" id="${id}" data-key="${key}" data-type="object" rows="4">${objValue}</textarea>`;
+        } else if (type === 'nested') {
+            const nestedValue = typeof value === 'object' ? JSON.stringify(value, null, 2) : '{}';
+            html += `<textarea class="form-control font-monospace" id="${id}" data-key="${key}" data-type="nested" rows="10">${nestedValue}</textarea>`;
+        } else if (options && options.length > 0) {
+            html += `<select class="form-select" id="${id}" data-key="${key}">`;
+            for (const opt of options) {
+                html += `<option value="${opt}" ${value === opt ? 'selected' : ''}>${opt}</option>`;
+            }
+            html += `</select>`;
+        } else {
+            html += `<input type="text" class="form-control" id="${id}" data-key="${key}" value="${value || ''}">`;
+        }
+
+        // Add description/help text if available
+        if (description) {
+            html += `<div class="form-text text-muted">${description}</div>`;
+        }
+
+        html += `</div>`;
+        return html;
+    }
+
+    function togglePassword(id) {
+        const input = document.getElementById(id);
+        input.type = input.type === 'password' ? 'text' : 'password';
+    }
+
+    function loadConfig() {
+        fetch('/api/{{ server_pass }}/config')
+            .then(r => r.json())
+            .then(data => {
+                if (data.error) {
+                    showToast(data.error, true);
+                    return;
+                }
+                originalConfig = data.config;
+                currentConfig = JSON.parse(JSON.stringify(data.config));
+                renderSettings();
+            })
+            .catch(e => showToast('Error loading config: ' + e, true));
+    }
+
+    function updateVisibility(category, isEnabled) {
+        const containerId = categoryContainers[category];
+        if (!containerId) return;
+        
+        const container = document.getElementById(containerId);
+        const fields = container.querySelectorAll('.config-field');
+        
+        fields.forEach(field => {
+            const input = field.querySelector('input, select, textarea');
+            // Don't hide the enable switch itself
+            if (input && (input.dataset.key.startsWith('ENABLE_') || input.dataset.key.endsWith('.ENABLED') || input.dataset.key === 'CHECK_FILESYSTEM')) {
+                return;
+            }
+            field.style.display = isEnabled ? 'block' : 'none';
+        });
+    }
+
+    function renderSettings() {
+        // Clear all containers
+        for (const containerId of Object.values(categoryContainers)) {
+            document.getElementById(containerId).innerHTML = '';
+        }
+
+        // Group settings by category
+        const grouped = {};
+        for (const [key, config] of Object.entries(currentConfig)) {
+            const category = config.category || 'Other';
+            if (!grouped[category]) grouped[category] = {};
+            grouped[category][key] = config;
+        }
+
+        // Render each category
+        for (const [category, settings] of Object.entries(grouped)) {
+            const containerId = categoryContainers[category] || 'advanced-settings';
+            const container = document.getElementById(containerId);
+            
+            // Sort settings: priority 'order' first (asc), then key name (asc)
+            const sortedKeys = Object.keys(settings).sort((a, b) => {
+                const orderA = settings[a].order !== undefined ? settings[a].order : 10;
+                const orderB = settings[b].order !== undefined ? settings[b].order : 10;
+                const orderDiff = orderA - orderB;
+                if (orderDiff !== 0) return orderDiff;
+                return settings[a].label.localeCompare(settings[b].label);
+            });
+
+            for (const key of sortedKeys) {
+                container.innerHTML += createInputField(key, settings[key]);
+            }
+
+            // check for enable switch and set initial visibility
+            const enableKey = sortedKeys.find(k => k.startsWith('ENABLE_') || k.endsWith('.ENABLED') || k === 'CHECK_FILESYSTEM');
+            
+            if (enableKey) {
+                const isEnabled = settings[enableKey].value;
+                updateVisibility(category, isEnabled);
+
+                // Add change listener
+                const enableSwitch = document.getElementById(`config-${enableKey}`);
+                if (enableSwitch) {
+                    enableSwitch.addEventListener('change', (e) => {
+                        updateVisibility(category, e.target.checked);
+                    });
+                }
+            }
+        }
+    }
+
+    function collectConfig() {
+        const updates = {};
+        const inputs = document.querySelectorAll('[data-key]');
+        
+        for (const input of inputs) {
+            const key = input.dataset.key;
+            const type = input.dataset.type;
+            let value;
+
+            if (input.type === 'checkbox') {
+                value = input.checked;
+            } else if (input.type === 'number') {
+                value = parseFloat(input.value) || 0;
+            } else if (type === 'array') {
+                value = input.value.split('\n').filter(line => line.trim() !== '');
+            } else if (type === 'object' || type === 'nested') {
+                try {
+                    value = JSON.parse(input.value);
+                } catch (e) {
+                    showToast(`Invalid JSON for ${key}`, true);
+                    return null;
+                }
+            } else {
+                value = input.value;
+            }
+
+            // Lowercase specific fields
+            if (key === 'JELLYFIN_EMBY' && typeof value === 'string') {
+                value = value.toLowerCase();
+            }
+
+            updates[key] = value;
+        }
+
+        return updates;
+    }
+
+    function saveConfig() {
+        const updates = collectConfig();
+        if (!updates) return;
+
+        const btn = document.getElementById('saveBtn');
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Saving...';
+
+        fetch('/api/{{ server_pass }}/config', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(updates)
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                showToast('Configuration saved successfully');
+                loadConfig(); // Reload to get fresh data
+            } else {
+                showToast(data.error || 'Failed to save configuration', true);
+            }
+        })
+        .catch(e => showToast('Error: ' + e, true))
+        .finally(() => {
+            btn.disabled = false;
+            btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-check-lg me-1" viewBox="0 0 16 16"><path d="M12.736 3.97a.733.733 0 0 1 1.047 0c.286.289.29.756.01 1.05L7.88 12.01a.733.733 0 0 1-1.065.02L3.217 8.384a.757.757 0 0 1 0-1.06.733.733 0 0 1 1.047 0l3.052 3.093 5.4-6.425z"/></svg>Save Changes';
+        });
+    }
+
+    // Load config on page load
+    document.addEventListener('DOMContentLoaded', loadConfig);
+</script>
+{% endblock %}

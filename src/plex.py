@@ -4,6 +4,7 @@ import os
 import sqlite3
 import time
 from contextlib import closing
+from datetime import datetime
 from xml.etree import ElementTree
 
 import db
@@ -93,7 +94,9 @@ def scan(
 ):
     if config["ENABLE_PLEX"]:
         scan_path = ""
-
+        started_at = datetime.now()
+        scan_status = "success"
+        error_message = None
         # sleep for delay
         while True:
             logger.info(f"Scan request from {scan_for} for '{path}'.")
@@ -165,6 +168,17 @@ def scan(
                         logger.error(
                             f"Failed removing '{path}' from Autoscan database."
                         )
+                db.add_history_item(
+                    scan_path=path,
+                    scan_for=scan_for,
+                    scan_type=scan_type,
+                    scan_section=section,
+                    status="aborted",
+                    started_at=started_at,
+                    completed_at=datetime.now(),
+                    error_message=f"File '{check_path}' exhausted all file checks",
+                    platform="Plex",
+                )
                 return
 
             else:
@@ -236,6 +250,10 @@ def scan(
                 logger.error(f"Content: {final_cmd.content}")
                 logger.error(f"URL: {final_cmd.url}")
                 logger.error("-" * 100)
+                scan_status = "failed"
+                error_message = (
+                    f"HTTP {final_cmd.status_code}: {final_cmd.content}"
+                )
 
             # remove item from Plex database if sqlite is enabled
             if config["SERVER_USE_SQLITE"]:
@@ -325,12 +343,25 @@ def scan(
                 )
                 utils.run_command(config["RUN_COMMAND_AFTER_SCAN"])
                 logger.info("Finished running external command.")
-        except Exception:
+        except Exception as e:
+            scan_status = "failed"
+            error_message = str(e)
             logger.exception(
                 f"Unexpected exception occurred while processing: '{scan_path}': "
             )
         finally:
             lock.release()
+            db.add_history_item(
+                scan_path=path,
+                scan_for=scan_for,
+                scan_type=scan_type,
+                scan_section=section,
+                status=scan_status,
+                started_at=started_at,
+                completed_at=datetime.now(),
+                error_message=error_message,
+                platform="Plex",
+            )
 
     return
 

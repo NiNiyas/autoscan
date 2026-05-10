@@ -6,6 +6,7 @@ from copy import copy
 from threading import Lock
 from time import time
 
+from oauthlib.oauth2.rfc6749.errors import InvalidClientIdError, MissingTokenError, TokenExpiredError
 from requests_oauthlib import OAuth2Session
 
 from .cache import Cache
@@ -180,7 +181,7 @@ class GoogleDrive:
         auth_url, state = self.http.authorization_url(
             self.auth_url,
             access_type="offline",
-            prompt="select_account",
+            prompt="consent",
             state="autoscan",
         )
         return auth_url
@@ -189,9 +190,21 @@ class GoogleDrive:
         token = self.http.fetch_token(
             self.token_url, code=code, client_secret=self.client_secret
         )
-        if "access_token" in token:
-            self._token_saver(token)
-            # pull in existing team drives and create cache for them
+        if "access_token" not in token:
+            logger.error("Google OAuth token exchange failed: no access_token in response.")
+            return self.token
+
+        if "refresh_token" not in token:
+            logger.error(
+                "Google OAuth token exchange did not return a refresh_token. "
+                "The access token will expire in ~1 hour and cannot be renewed. "
+                "Try revoking app access at https://myaccount.google.com/permissions "
+                "and then re-authorize."
+            )
+        else:
+            logger.info("Google OAuth token exchange returned a refresh_token \u2014 token renewal will work.")
+
+        self._token_saver(token)
         return self.token
 
     def query(
@@ -299,6 +312,18 @@ class GoogleDrive:
                 resp,
                 resp_json if (resp_json and len(resp_json)) else resp.text,
             )
+        except (InvalidClientIdError, MissingTokenError, TokenExpiredError) as exc:
+            if "refresh_token" in str(exc).lower() or isinstance(exc, (MissingTokenError, TokenExpiredError)):
+                logger.error(
+                    "Google OAuth token refresh failed: the stored token is missing 'refresh_token'. "
+                    "Please re-authorize autoscan by visiting the web UI and completing the Google Drive "
+                    "login flow again (Settings → Google Drive)."
+                )
+            else:
+                logger.error(
+                    f"Google OAuth error sending request to {request_url}: {exc}"
+                )
+            return False, resp, None
         except Exception:
             logger.exception(
                 f"Exception sending request to {request_url} with kwargs={kwargs}: "
@@ -615,11 +640,18 @@ class GoogleDrive:
 
     def _load_token(self):
         try:
-            return (
+            token = (
                 self.settings_cache["token"]
                 if "token" in self.settings_cache
                 else {}
             )
+            if token and "refresh_token" not in token:
+                logger.warning(
+                    "Loaded Google OAuth token is missing 'refresh_token'. "
+                    "Automatic token refresh will fail when the access token expires. "
+                    "Please re-authorize autoscan via the web UI to obtain a new token."
+                )
+            return token
         except Exception:
             logger.exception("Exception loading token from cache: ")
         return {}
@@ -633,6 +665,8 @@ class GoogleDrive:
         return False
 
     def _token_saver(self, token):
+        if "refresh_token" not in token and "refresh_token" in self.token:
+            token["refresh_token"] = self.token["refresh_token"]
         # update internal token dict
         self.token.update(token)
         try:

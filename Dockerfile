@@ -39,7 +39,7 @@ COPY /root /
 RUN useradd -u 1000 -U -d "${CONFIG_DIR}" -s /bin/false autoscan && \
     usermod -G users autoscan
 
-LABEL org.opencontainers.image.source = "https://github.com/NiNiyas/autoscan"
+LABEL org.opencontainers.image.source="https://github.com/NiNiyas/autoscan"
 LABEL MAINTAINER="NiNiyas"
 LABEL org.opencontainers.image.description="Autoscan is a python script that assists in the importing of Sonarr, Radarr, and Lidarr downloads into Plex and/or Jellyfin/Emby."
 LABEL org.opencontainers.image.licenses="GNU General Public License v3.0"

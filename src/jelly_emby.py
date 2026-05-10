@@ -1,6 +1,6 @@
 import logging
 import time
-import traceback
+from datetime import datetime
 
 import db
 import requests
@@ -64,9 +64,23 @@ def scan(config, path, scan_for):
     joe_log.info(f"Scan request from {scan_for} for '{path}'.")
     host = config["JOE_HOST"]
     api_key = config["JOE_API_KEY"]
+    started_at = datetime.now()
+    scan_status = "success"
+    error_message = None
 
     server_info = get_server_info(host, server_type, joe_log, api_key)
     if not server_info:
+        db.add_history_item(
+            scan_path=path,
+            scan_for=scan_for,
+            scan_type="Scan",
+            scan_section=0,
+            status="failed",
+            started_at=started_at,
+            completed_at=datetime.now(),
+            error_message=f"Failed to connect to {server_type.capitalize()} server",
+            platform=server_type.capitalize(),
+        )
         return
 
     if config.get("JOE_ENTIRE_REFRESH", False):
@@ -115,7 +129,11 @@ def scan(config, path, scan_for):
             joe_log.error(f"Content: {command.content}")
             joe_log.error(f"URL: {command.url}")
             joe_log.error("-" * 100)
+            scan_status = "failed"
+            error_message = f"HTTP {command.status_code}: {command.content}"
     except Exception as e:
+        scan_status = "failed"
+        error_message = str(e)
         logger.exception(
             f"Unexpected exception occurred while processing scan request for {server_type.capitalize()}: {e} "
         )
@@ -141,6 +159,18 @@ def scan(config, path, scan_for):
             time.sleep(1)
         else:
             logger.error(f"Failed removing '{path}' from Autoscan database.")
+
+    db.add_history_item(
+        scan_path=path,
+        scan_for=scan_for,
+        scan_type="Scan",
+        scan_section=0,
+        status=scan_status,
+        started_at=started_at,
+        completed_at=datetime.now(),
+        error_message=error_message,
+        platform=server_type.capitalize(),
+    )
 
 
 def get_server_info(host, server_type, joe_log, api_key):
