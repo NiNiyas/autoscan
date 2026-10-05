@@ -13,21 +13,29 @@ emby_logger = logging.getLogger("EMBY")
 logger = logging.getLogger("AUTOSCAN")
 
 
+def build_auth(server_type, api_key):
+    headers = {
+        "accept": "application/json",
+        "Content-Type": "application/json",
+    }
+    if server_type.lower() == "emby":
+        return headers, f"?api_key={api_key}"
+    headers["Authorization"] = f'MediaBrowser Token="{api_key}"'
+    return headers, ""
+
+
 def get_library_paths(conf):
     if conf.configs["ENABLE_JOE"]:
-        server_type = conf.configs["JELLYFIN_EMBY"]
-        headers = {
-            "accept": "application/json",
-            "Content-Type": "application/json",
-        }
+        server_type = conf.configs["JELLYFIN_EMBY"].lower()
         host = conf.configs["JOE_HOST"]
         api_key = conf.configs["JOE_API_KEY"]
+        headers, auth_query = build_auth(server_type, api_key)
         server_info = get_server_info(host, server_type, logger, api_key)
         if not server_info:
             return
         try:
             command = requests.get(
-                f"{host}/Library/PhysicalPaths?api_key={api_key}",
+                f"{host}/Library/PhysicalPaths{auth_query}",
                 headers=headers,
                 timeout=60,
             )
@@ -83,18 +91,15 @@ def scan(config, path, scan_for):
         )
         return
 
+    headers, auth_query = build_auth(server_type, api_key)
+
     if config.get("JOE_ENTIRE_REFRESH", False):
         joe_log.info(f"Refreshing entire '{server_info}' libraries.")
-        endpoint = f"/Library/Refresh?api_key={api_key}"
+        endpoint = f"/Library/Refresh{auth_query}"
         data = {}
     else:
-        endpoint = f"/Library/Media/Updated?api_key={api_key}"
+        endpoint = f"/Library/Media/Updated{auth_query}"
         data = {"Updates": [{"Path": path, "UpdateType": "Created"}]}
-
-    headers = {
-        "accept": "application/json",
-        "Content-Type": "application/json",
-    }
 
     if config["SERVER_SCAN_DELAY"]:
         joe_log.info(f"Sleeping for {config['SERVER_SCAN_DELAY']} seconds...")
@@ -127,7 +132,8 @@ def scan(config, path, scan_for):
             )
             joe_log.error(f"Status code: {command.status_code}")
             joe_log.error(f"Content: {command.content}")
-            joe_log.error(f"URL: {command.url}")
+            # strip the query string so the api key is never written to the log
+            joe_log.error(f"URL: {command.url.split('?')[0]}")
             joe_log.error("-" * 100)
             scan_status = "failed"
             error_message = f"HTTP {command.status_code}: {command.content}"
@@ -174,9 +180,10 @@ def scan(config, path, scan_for):
 
 
 def get_server_info(host, server_type, joe_log, api_key):
+    headers, auth_query = build_auth(server_type, api_key)
     try:
         response = requests.get(
-            f"{host}/System/Info?api_key={api_key}", timeout=60
+            f"{host}/System/Info{auth_query}", headers=headers, timeout=60
         )
         response.raise_for_status()
         info = response.json()
@@ -203,8 +210,11 @@ def get_scheduled_tasks(conf):
             return
 
         try:
+            headers, auth_query = build_auth(server_type, api_key)
             response = requests.get(
-                f"{host}/ScheduledTasks?api_key={api_key}", timeout=60
+                f"{host}/ScheduledTasks{auth_query}",
+                headers=headers,
+                timeout=60,
             )
             response.raise_for_status()
             return extract_and_print_tasks(response.json())
@@ -237,10 +247,12 @@ def run_scheduled_tasks(host, server_type, api_key, config):
         "JELLYFIN_SCHEDULED_TASK_IDS" in config
         and config["JELLYFIN_SCHEDULED_TASK_IDS"]
     ):
+        headers, auth_query = build_auth(server_type, api_key)
         for task in config["JELLYFIN_SCHEDULED_TASK_IDS"]:
             try:
                 response = requests.post(
-                    f"{host}/ScheduledTasks/Running/{task}?api_key={api_key}",
+                    f"{host}/ScheduledTasks/Running/{task}{auth_query}",
+                    headers=headers,
                     timeout=60,
                 )
                 response.raise_for_status()

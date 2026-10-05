@@ -756,6 +756,12 @@ def infer_config_type(key, value):
         return "string"
 
 
+# Sent by the config API in place of a stored secret. The settings UI echoes it
+# back unchanged when the user did not edit the field, and the PUT handler
+# ignores it so a real secret is never overwritten by the placeholder.
+REDACTED_SECRET = "__UNCHANGED__"
+
+
 def infer_config_category(key):
     if (
         key.startswith("PLEX_")
@@ -842,6 +848,12 @@ def flatten_nested_config(prefix, obj, result):
             result[full_key] = v
 
 
+def redact_secret(config_type, value):
+    if config_type == "password" and value:
+        return REDACTED_SECRET, True
+    return value, False
+
+
 @app.route(f"/api/{conf.configs['SERVER_PASS']}/config", methods=["GET"])
 def api_get_config():
     try:
@@ -855,14 +867,19 @@ def api_get_config():
                 flatten_nested_config(key, value, flattened)
                 for flat_key, flat_value in flattened.items():
                     config_type = infer_config_type(flat_key, flat_value)
+                    sent_value, redacted = redact_secret(
+                        config_type, flat_value
+                    )
                     config_data[flat_key] = {
-                        "value": flat_value,
+                        "value": sent_value,
                         "type": config_type,
                         "label": generate_label(flat_key),
                         "category": infer_config_category(flat_key),
                         "description": CONFIG_DESCRIPTIONS.get(flat_key, ""),
                         "order": 0 if flat_key.endswith(".ENABLED") else 10,
                     }
+                    if redacted:
+                        config_data[flat_key]["redacted"] = True
             else:
                 config_type = infer_config_type(key, value)
                 options = None
@@ -871,8 +888,10 @@ def api_get_config():
                 if key == "JELLYFIN_EMBY":
                     options = ["Jellyfin", "Emby"]
 
+                sent_value, redacted = redact_secret(config_type, value)
+
                 config_data[key] = {
-                    "value": value,
+                    "value": sent_value,
                     "type": config_type,
                     "label": generate_label(key),
                     "category": infer_config_category(key),
@@ -881,6 +900,9 @@ def api_get_config():
                     if key.startswith("ENABLE_") or key == "CHECK_FILESYSTEM"
                     else 10,
                 }
+
+                if redacted:
+                    config_data[key]["redacted"] = True
 
                 if options:
                     config_data[key]["options"] = options
@@ -908,6 +930,11 @@ def api_update_config():
 
         # Apply updates
         for key, value in updates.items():
+            # A redacted secret was echoed back untouched - keep the stored value
+            if value == REDACTED_SECRET:
+                logger.debug(f"Config unchanged (redacted): {key}")
+                continue
+
             if "." in key:
                 # Handle dot-notation keys (e.g., GOOGLE.ENABLED, RCLONE.BINARY)
                 parts = key.split(".")
